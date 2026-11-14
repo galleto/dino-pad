@@ -1,181 +1,337 @@
 #include <SPI.h>
 #include <Adafruit_GFX.h>
-#include <Adafruit_ILI9341.h>
+
+// ===== DRIVER DE LA PANTALLA =====
+// 0 = ILI9341 (lo normal en la placa roja de 2.8")   1 = ST7789
+#define DRIVER 1
+
+#if DRIVER == 0
+  #include <Adafruit_ILI9341.h>
+#else
+  #include <Adafruit_ST7789.h>
+#endif
 
 // ===== PINES (tu cableado) =====
-// SPI por defecto del ESP32: SCK=18, MISO=19, MOSI=23
-#define TFT_CS         5
-#define TFT_DC         2
-#define TFT_RST        4
-#define TOUCH_CS       15   // T_CS: se deja inactivo
-#define SD_CS          32   // SD_CS: se deja inactivo
-
-#define PIN_ENC_CLK    35
-#define PIN_ENC_DT     33
-#define PIN_ENC_SW     25
-#define PIN_BTN_NEGRO  13   // pata 2 al GPIO, la otra pata a GND
-#define PIN_BTN_BLANCO 14
-#define PIN_BTN_ROJO   26
+// SPI por defecto del ESP32: SCK=18, MISO=19, MOSI=23  (LED/BLK de la TFT a 3V3)
+#define TFT_CS      5
+#define TFT_DC      2
+#define TFT_RST     4
+#define TOUCH_CS    15   // T_CS: inactivo
+#define SD_CS       32   // SD_CS: inactivo
+#define BTN_NEGRO   13
+#define BTN_BLANCO  14
+#define BTN_ROJO    26
+#define BTN_SW      25   // boton de la perilla KY-040
 
 // ===== AJUSTES =====
-#define ROTACION          1       // 1 o 3 = horizontal (el diseno es para 320x240)
-#define PASOS_POR_MUESCA  4       // si cada "clic" cuenta de 2 en 2, pon 2
-#define INVERTIR_GIRO     false   // true si derecha/izquierda salen al reves
+#define PALETA     1          // 0 = claro (como Chrome), 1 = noche, 2 = verde tipo Pip-Boy
+#define ROTACION   1          // 1 o 3 (horizontal)
+#define SPI_FREQ   27000000   // si ves ruido baja a 20000000; para mas FPS sube a 40000000
 
-// Colores RGB565
-#define C_NEGRO    0x0000
-#define C_BLANCO   0xFFFF
-#define C_ROJO     0xF800
-#define C_VERDE    0x07E0
-#define C_AZUL     0x001F
-#define C_CIAN     0x07FF
-#define C_AMARILLO 0xFFE0
-#define C_GRIS     0x7BEF
+#if PALETA == 0
+  const uint16_t COL_FONDO = 0xFFFF, COL_OBJ = 0x528A, COL_TENUE = 0xAD55;
+#elif PALETA == 1
+  const uint16_t COL_FONDO = 0x0000, COL_OBJ = 0xFFFF, COL_TENUE = 0x4208;
+#else
+  const uint16_t COL_FONDO = 0x0000, COL_OBJ = 0x07E0, COL_TENUE = 0x0200;
+#endif
 
-Adafruit_ILI9341 tft(TFT_CS, TFT_DC, TFT_RST);
+#if DRIVER == 0
+  Adafruit_ILI9341 tft(TFT_CS, TFT_DC, TFT_RST);
+#else
+  Adafruit_ST7789 tft(TFT_CS, TFT_DC, TFT_RST);
+#endif
 
-// ===== Perilla KY-040 (con interrupciones) =====
-volatile int32_t encPos  = 0;
-volatile int8_t  encAcc  = 0;
-volatile uint8_t encPrev = 0;
+// ===== Canvas (buffer en memoria donde se dibuja el juego) =====
+#define CW        320    // ancho
+#define CH        110    // alto
+#define Y_CANVAS  70     // y en la pantalla donde se pega
+#define SUELO_Y   96     // linea del suelo dentro del canvas
+#define ESC       2      // escala de los sprites
+#define DINO_X    28
+#define V_SALTO   8.0f
+#define GRAVEDAD  0.8f
 
-void IRAM_ATTR isrEncoder() {
-  static const int8_t TABLA[16] = {0,-1,1,0, 1,0,0,-1, -1,0,0,1, 0,1,-1,0};
-  uint8_t ahora = (digitalRead(PIN_ENC_CLK) << 1) | digitalRead(PIN_ENC_DT);
-  int8_t acc = encAcc + TABLA[(encPrev << 2) | ahora];
-  encPrev = ahora;
-  if (acc >= PASOS_POR_MUESCA) {
-    acc = 0;
-    encPos = encPos + (INVERTIR_GIRO ? -1 : 1);
-  } else if (acc <= -PASOS_POR_MUESCA) {
-    acc = 0;
-    encPos = encPos + (INVERTIR_GIRO ? 1 : -1);
-  }
-  encAcc = acc;
-}
+GFXcanvas16* canvas = nullptr;
 
-// ===== Botones =====
-struct Boton {
-  const char* nombre;
-  uint8_t pin;
-  uint16_t color;
-  bool presionado;
-  bool lecturaPrev;
-  uint32_t tCambio;
+// ===== Sprites (# = pixel pintado) =====
+const char* const DINO_CUERPO[20] = {
+  "..........############",
+  "..........############",
+  "..........##.#########",
+  "..........############",
+  "..........############",
+  "..........#########...",
+  "..........######......",
+  ".........########.....",
+  "........#########.....",
+  ".......###########....",
+  "....##############....",
+  ".####################.",
+  "#################..##.",
+  "..###############.....",
+  "....#############.....",
+  ".....############.....",
+  "......##########......",
+  ".......#########......",
+  "........########......",
+  "........########......"
+};
+const char* const PIERNAS_1[4] = {
+  "........###..###......",
+  "........###..####.....",
+  "........###...........",
+  "........####.........."
+};
+const char* const PIERNAS_2[4] = {
+  "........###..###......",
+  "........####.###......",
+  ".............###......",
+  ".............####....."
+};
+const char* const PIERNAS_QUIETO[4] = {
+  "........###..###......",
+  "........###..###......",
+  "........###..###......",
+  "........####.####....."
+};
+const char* const CACTUS[16] = {
+  "...###...",
+  "...###...",
+  "...###...",
+  "...###...",
+  "##.###.##",
+  "##.###.##",
+  "##.###.##",
+  "##.###.##",
+  "#########",
+  "#########",
+  "...###...",
+  "...###...",
+  "...###...",
+  "...###...",
+  "...###...",
+  "...###..."
 };
 
-Boton botones[4] = {
-  {"NEGRO",  PIN_BTN_NEGRO,  C_GRIS,   false, false, 0},
-  {"BLANCO", PIN_BTN_BLANCO, C_BLANCO, false, false, 0},
-  {"ROJO",   PIN_BTN_ROJO,   C_ROJO,   false, false, 0},
-  {"SW",     PIN_ENC_SW,     C_CIAN,   false, false, 0}   // boton de la perilla
-};
+// ===== Estado del juego =====
+float dinoY = 0, dinoVy = 0;
+bool enSuelo = true;
+float velocidad = 5.5f, distancia = 0, scrollSuelo = 0, distSpawn = 100;
+uint32_t frames = 0;
 
-// ===== Dibujo =====
-void textoCentrado(const char* txt, int xCol, int anchoCol, int y, uint8_t tam, uint16_t fg, uint16_t bg) {
+struct Cactus { float x; uint8_t filas; bool activo; };
+Cactus cactus[4];
+
+struct Nube { float x; float y; };
+Nube nubes[3] = {{40, 20}, {170, 34}, {290, 12}};
+
+// ===== Utilidades =====
+void textoCentrado(const char* txt, int y, uint8_t tam) {
   int w = strlen(txt) * 6 * tam;
   tft.setTextSize(tam);
-  tft.setTextColor(fg, bg);
-  tft.setCursor(xCol + (anchoCol - w) / 2, y);
+  tft.setTextColor(COL_OBJ, COL_FONDO);
+  tft.setCursor((320 - w) / 2, y);
   tft.print(txt);
 }
 
-void dibujarBoton(int i) {
-  int x = i * 80 + 5;
-  tft.fillRoundRect(x, 150, 70, 50, 6, botones[i].presionado ? botones[i].color : C_NEGRO);
-  tft.drawRoundRect(x, 150, 70, 50, 6, botones[i].color);
-}
-
-void dibujarPerilla(int32_t pos, int dir) {
-  char buf[12];
-  snprintf(buf, sizeof(buf), "%5ld", (long)pos);
-  textoCentrado(buf, 0, 320, 64, 5, C_AMARILLO, C_NEGRO);
-
-  tft.fillRect(0, 118, 320, 16, C_NEGRO);
-  if (dir > 0)      textoCentrado("DERECHA ->", 0, 320, 118, 2, C_VERDE, C_NEGRO);
-  else if (dir < 0) textoCentrado("<- IZQUIERDA", 0, 320, 118, 2, C_VERDE, C_NEGRO);
-}
-
-void dibujarBase() {
-  tft.fillScreen(C_NEGRO);
-  tft.fillRect(0, 0, 320, 26, C_AZUL);
-  textoCentrado("DINOPAD - TEST CONTROLES", 0, 320, 5, 2, C_BLANCO, C_AZUL);
-  textoCentrado("PERILLA KY-040", 0, 320, 36, 2, C_CIAN, C_NEGRO);
-  for (int i = 0; i < 4; i++) {
-    dibujarBoton(i);
-    textoCentrado(botones[i].nombre, i * 80, 80, 210, 2, botones[i].color, C_NEGRO);
+void dibujarSprite(const char* const* filas, int n, int x, int y, uint16_t color) {
+  for (int r = 0; r < n; r++) {
+    const char* f = filas[r];
+    int c = 0;
+    while (f[c]) {
+      if (f[c] == '#') {
+        int ini = c;
+        while (f[c] == '#') c++;
+        canvas->fillRect(x + ini * ESC, y + r * ESC, (c - ini) * ESC, ESC, color);
+      } else {
+        c++;
+      }
+    }
   }
-  dibujarPerilla(0, 0);
 }
 
-void pruebaColores() {
-  const uint16_t colores[4] = {C_ROJO, C_VERDE, C_AZUL, C_BLANCO};
-  const char* nombres[4]    = {"ROJO", "VERDE", "AZUL", "BLANCO"};
-  for (int i = 0; i < 4; i++) {
-    tft.fillScreen(colores[i]);
-    textoCentrado(nombres[i], 0, tft.width(), tft.height() / 2 - 16, 4,
-                  (i == 3) ? C_NEGRO : C_BLANCO, colores[i]);
-    delay(700);
+bool botonPresionado() {
+  return !digitalRead(BTN_NEGRO) || !digitalRead(BTN_BLANCO) ||
+         !digitalRead(BTN_ROJO)  || !digitalRead(BTN_SW);
+}
+
+void saltar() {
+  if (enSuelo) { enSuelo = false; dinoVy = V_SALTO; }
+}
+
+// ===== Logica =====
+void actualizar() {
+  frames++;
+  velocidad = min(9.0f, 5.5f + frames / 600.0f);   // acelera poco a poco
+  distancia += velocidad;
+  scrollSuelo += velocidad;
+
+  // Nubes (mas lentas que el suelo)
+  for (auto &n : nubes) {
+    n.x -= velocidad * 0.25f;
+    if (n.x < -50) { n.x = CW + random(0, 120); n.y = random(8, 40); }
   }
+
+  // Cactus: avanzan hacia la izquierda
+  for (auto &c : cactus) {
+    if (!c.activo) continue;
+    c.x -= velocidad;
+    if (c.x < -24) c.activo = false;
+  }
+  distSpawn -= velocidad;
+  if (distSpawn <= 0) {
+    for (auto &c : cactus) {
+      if (!c.activo) { c.activo = true; c.x = CW + 4; c.filas = random(12, 17); break; }
+    }
+    distSpawn = velocidad * 21 + 80 + random(0, 140);   // siempre da tiempo a aterrizar
+  }
+
+  // Piloto automatico: salta cuando el cactus esta a la distancia justa
+  if (enSuelo) {
+    float frente = DINO_X + 34;                 // punta del pie del dinosaurio
+    float hueco0 = velocidad * 10.5f - 18;      // distancia ideal para empezar el salto
+    for (auto &c : cactus) {
+      if (!c.activo) continue;
+      float hueco = c.x - frente;
+      if (hueco > 0 && hueco <= hueco0) { saltar(); break; }
+    }
+  }
+
+  // Fisica del salto
+  if (!enSuelo) {
+    dinoY += dinoVy;
+    dinoVy -= GRAVEDAD;
+    if (dinoY <= 0) { dinoY = 0; dinoVy = 0; enSuelo = true; }
+  }
+}
+
+// ===== Dibujo =====
+void dibujar() {
+  canvas->fillScreen(COL_FONDO);
+
+  // Nubes
+  for (auto &n : nubes) {
+    canvas->fillRoundRect((int)n.x, (int)n.y, 44, 9, 4, COL_TENUE);
+    canvas->fillRoundRect((int)n.x + 10, (int)n.y - 5, 22, 9, 4, COL_TENUE);
+  }
+
+  // Suelo: linea + pedacitos que se mueven
+  canvas->drawFastHLine(0, SUELO_Y, CW, COL_OBJ);
+  int desp = (int)scrollSuelo;
+  for (int x = 0; x < CW; x++) {
+    uint32_t k = (uint32_t)(x + desp);
+    k = (k ^ 61) ^ (k >> 16); k *= 9; k ^= k >> 4; k *= 0x27d4eb2d; k ^= k >> 15;
+    if ((k & 31) == 0) {
+      canvas->drawFastHLine(x, SUELO_Y + 5 + ((k >> 5) % 3) * 4, 2 + ((k >> 8) & 3), COL_TENUE);
+    }
+  }
+
+  // Cactus (los bajos usan solo las ultimas filas del sprite)
+  for (auto &c : cactus) {
+    if (!c.activo) continue;
+    dibujarSprite(&CACTUS[16 - c.filas], c.filas, (int)c.x, SUELO_Y - c.filas * ESC, COL_OBJ);
+  }
+
+  // Dinosaurio
+  int yDino = SUELO_Y - 24 * ESC - (int)dinoY;
+  dibujarSprite(DINO_CUERPO, 20, DINO_X, yDino, COL_OBJ);
+  const char* const* piernas = !enSuelo ? PIERNAS_QUIETO : (((frames / 4) % 2) ? PIERNAS_2 : PIERNAS_1);
+  dibujarSprite(piernas, 4, DINO_X, yDino + 20 * ESC, COL_OBJ);
+
+  // Marcador
+  char b[8];
+  snprintf(b, sizeof(b), "%05d", (int)(distancia / 10));
+  canvas->setTextSize(2);
+  canvas->setTextColor(COL_OBJ);
+  canvas->setCursor(CW - 5 * 12 - 6, 4);
+  canvas->print(b);
+}
+
+// Manda el canvas completo a la pantalla de un solo golpe
+void empujarCanvas() {
+  tft.startWrite();
+  tft.setAddrWindow(0, Y_CANVAS, CW, CH);
+  tft.writePixels(canvas->getBuffer(), (uint32_t)CW * CH);
+  tft.endWrite();
+}
+
+void dibujarFijo() {
+  tft.fillScreen(COL_FONDO);
+  textoCentrado("DINOBOTICS", 6, 4);
+  textoCentrado("TECNM - DINO PAD 1.0", 46, 2);
+  textoCentrado("CUALQUIER BOTON = SALTAR", 192, 2);
+}
+
+void mostrarFps(int fps) {
+  char b[16];
+  snprintf(b, sizeof(b), "FPS: %2d", fps);
+  textoCentrado(b, 216, 2);
+  Serial.printf("FPS: %d\n", fps);
 }
 
 void setup() {
   Serial.begin(115200);
   delay(300);
 
-  // Otros dispositivos del bus SPI: inactivos (CS en HIGH)
+  // Otros dispositivos del bus SPI: inactivos
   pinMode(TOUCH_CS, OUTPUT); digitalWrite(TOUCH_CS, HIGH);
   pinMode(SD_CS, OUTPUT);    digitalWrite(SD_CS, HIGH);
+  pinMode(BTN_NEGRO, INPUT_PULLUP);
+  pinMode(BTN_BLANCO, INPUT_PULLUP);
+  pinMode(BTN_ROJO, INPUT_PULLUP);
+  pinMode(BTN_SW, INPUT_PULLUP);
 
-  // Entradas
-  pinMode(PIN_ENC_CLK, INPUT);          // GPIO35: sin pull-up interno (usa los del KY-040)
-  pinMode(PIN_ENC_DT, INPUT_PULLUP);
-  for (int i = 0; i < 4; i++) pinMode(botones[i].pin, INPUT_PULLUP);   // incluye SW
-
-  encPrev = (digitalRead(PIN_ENC_CLK) << 1) | digitalRead(PIN_ENC_DT);
-  attachInterrupt(digitalPinToInterrupt(PIN_ENC_CLK), isrEncoder, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(PIN_ENC_DT),  isrEncoder, CHANGE);
-
-  // Pantalla
-  tft.begin(20000000);      // 20 MHz: seguro con cables dupont
+#if DRIVER == 0
+  tft.begin(SPI_FREQ);
+#else
+  tft.init(240, 320);
+  tft.setSPISpeed(SPI_FREQ);
+#endif
   tft.setRotation(ROTACION);
-  pruebaColores();
-  dibujarBase();
-  Serial.println("Listo: gira la perilla y presiona los botones.");
+uint8_t madctl = 0x68;   // MX | MV | BGR  → prueba este primero
+tft.sendCommand(0x36, &madctl, 1);
+  Serial.printf("W=%d H=%d\n", tft.width(), tft.height());
+tft.drawRect(0, 0, tft.width(), tft.height(), COL_OBJ);
+  tft.fillScreen(COL_FONDO);
+
+  canvas = new GFXcanvas16(CW, CH);
+  Serial.printf("Heap libre: %u | bloque mayor: %u\n",
+                (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMaxAllocHeap());
+  if (!canvas->getBuffer()) {
+    Serial.println("ERROR: sin memoria para el canvas (necesita ~70 KB seguidos).");
+    textoCentrado("SIN MEMORIA", 100, 3);
+    while (true) delay(1000);
+  }
+
+  dibujarFijo();
+  Serial.println("Animacion lista.");
 }
 
 void loop() {
-  // --- Perilla ---
-  static int32_t posPrev = 0;
-  int32_t pos = encPos;
-  if (pos != posPrev) {
-    int dir = (pos > posPrev) ? 1 : -1;
-    Serial.printf("Perilla %s -> posicion %ld\n", dir > 0 ? "DERECHA" : "IZQUIERDA", (long)pos);
-    dibujarPerilla(pos, dir);
-    posPrev = pos;
+  uint32_t t0 = millis();
+
+  // Cualquier boton (o la perilla) hace saltar
+  static bool previo = false;
+  bool pres = botonPresionado();
+  if (pres && !previo) saltar();
+  previo = pres;
+
+  actualizar();
+  dibujar();
+  empujarCanvas();
+
+  // FPS una vez por segundo
+  static uint32_t tFps = 0;
+  static int cuenta = 0;
+  cuenta++;
+  if (millis() - tFps >= 1000) {
+    mostrarFps(cuenta);
+    cuenta = 0;
+    tFps = millis();
   }
 
-  // --- Estado crudo de CLK y DT (sirve para detectar cableado o pull-up faltante) ---
-  static int estPrev = -1;
-  int est = (digitalRead(PIN_ENC_CLK) << 1) | digitalRead(PIN_ENC_DT);
-  if (est != estPrev) {
-    estPrev = est;
-    char b[24];
-    snprintf(b, sizeof(b), "CLK=%d  DT=%d", (est >> 1) & 1, est & 1);
-    textoCentrado(b, 0, 320, 138, 1, C_GRIS, C_NEGRO);
-  }
-
-  // --- Botones (antirrebote de 30 ms) ---
-  for (int i = 0; i < 4; i++) {
-    bool lectura = (digitalRead(botones[i].pin) == LOW);
-    if (lectura != botones[i].lecturaPrev) {
-      botones[i].lecturaPrev = lectura;
-      botones[i].tCambio = millis();
-    }
-    if (lectura != botones[i].presionado && (millis() - botones[i].tCambio) > 30) {
-      botones[i].presionado = lectura;
-      dibujarBoton(i);
-      Serial.printf("Boton %s: %s\n", botones[i].nombre, lectura ? "PRESIONADO" : "suelto");
-    }
-  }
+  // ~30 cuadros por segundo
+  uint32_t dt = millis() - t0;
+  if (dt < 33) delay(33 - dt);
 }
