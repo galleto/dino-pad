@@ -51,4 +51,4 @@ export function useVitals() {
   }, []);
 
   return { latest, history, scenario, setScenario, connected };
-}........................................
+}
