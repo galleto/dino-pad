@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from 'react';
 import { getOverallStatus, STATUS_LABEL } from '../services/health';
-import { sourceLabel } from '../services/readings';
+import { etiquetaOrigen } from './origenes';
+import { LeyendaOrigen } from './Origen';
 import VitalCard from './VitalCard';
 import HealthAlerts from './HealthAlerts';
 import CrewSelector from './CrewSelector';
@@ -22,6 +23,7 @@ export default function VitalMetrics({ data, onSelectIndicator }) {
         <CrewSelector crew={Object.values(crew)} activeCrewId={activeCrewId} onChange={setActiveCrewId} />
         <div className={`overall-status overall-${status}`}><span className="status-dot" /> ESTADO GENERAL <strong>{STATUS_LABEL[status]}</strong></div>
       </div>
+      <LeyendaOrigen />
       <section className="monitor-layout" aria-label="Estado de salud del tripulante">
         <div className="monitor-main">
           <div className="vitals-grid">
@@ -36,7 +38,7 @@ export default function VitalMetrics({ data, onSelectIndicator }) {
         </div>
         <aside className="monitor-aside">
           <section className="panel side-panel"><div className="panel-heading"><div><span className="eyebrow">PRIORIDAD</span><h2>Alertas activas</h2></div><span className="count-badge">{localAlerts.length}</span></div><HealthAlerts alerts={localAlerts.slice(0, 4)} crewById={crew} latest={latest} compact /></section>
-          <section className="panel side-panel"><div className="panel-heading"><div><span className="eyebrow">TELEMETRÍA</span><h2>Últimos eventos</h2></div></div><div className="event-list">{orderedIndicators.slice(0, 5).map((indicator) => { const reading = current[indicator.id]; return <div className="event-row" key={indicator.id}><span className={`event-marker ${reading?.source === 'simulated' ? 'event-sim' : ''}`} /><span><strong>{indicator.name}</strong><small>{reading?.quality === 'no_signal' ? 'sin señal' : reading?.timestamp ? new Date(Number(reading.timestamp) || reading.timestamp).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Esperando lectura'}{reading ? ` · ${sourceLabel(reading.source)}` : ''}</small></span><b>{reading?.value ?? '—'} {reading?.value != null ? indicator.unit : ''}</b></div>; })}</div></section>
+          <section className="panel side-panel"><div className="panel-heading"><div><span className="eyebrow">TELEMETRÍA</span><h2>Últimos eventos</h2></div></div><div className="event-list">{orderedIndicators.slice(0, 5).map((indicator) => { const reading = current[indicator.id]; return <div className="event-row" key={indicator.id}><span className={`event-marker ${reading?.source === 'simulated' ? 'event-sim' : ''}`} /><span><strong>{indicator.name}</strong><small>{reading?.quality === 'no_signal' ? 'sin señal' : reading?.timestamp ? new Date(Number(reading.timestamp) || reading.timestamp).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Esperando lectura'}{reading ? ` · ${etiquetaOrigen(reading.source)}` : ''}</small></span><b>{reading?.value ?? '—'} {reading?.value != null ? indicator.unit : ''}</b></div>; })}</div></section>
         </aside>
       </section>
     </div>

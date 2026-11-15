@@ -17,24 +17,24 @@ const POINTS = [
 function Skeleton() {
   return (
     <group>
-      <mesh position={[0, 1.58, 0]}><sphereGeometry args={[.25, 16, 12]} /><meshBasicMaterial color="#a4ff70" wireframe transparent opacity={.55} /></mesh>
-      <mesh position={[0, 1.18, 0]}><sphereGeometry args={[.09, 10, 8]} /><meshBasicMaterial color="#a4ff70" wireframe transparent opacity={.4} /></mesh>
-      <mesh position={[0, .66, 0]}><capsuleGeometry args={[.19, .45, 5, 10]} /><meshBasicMaterial color="#a4ff70" wireframe transparent opacity={.42} /></mesh>
-      <mesh position={[0, .1, 0]} scale={[.82, .7, .7]}><sphereGeometry args={[.23, 12, 10]} /><meshBasicMaterial color="#a4ff70" wireframe transparent opacity={.38} /></mesh>
-      <mesh position={[-.31, .62, 0]} rotation={[0, 0, -.26]}><capsuleGeometry args={[.075, .58, 4, 8]} /><meshBasicMaterial color="#a4ff70" wireframe transparent opacity={.42} /></mesh>
-      <mesh position={[.31, .62, 0]} rotation={[0, 0, .26]}><capsuleGeometry args={[.075, .58, 4, 8]} /><meshBasicMaterial color="#a4ff70" wireframe transparent opacity={.42} /></mesh>
-      <mesh position={[-.76, .12, 0]} rotation={[0, 0, -.08]}><capsuleGeometry args={[.075, .58, 4, 8]} /><meshBasicMaterial color="#a4ff70" wireframe transparent opacity={.42} /></mesh>
-      <mesh position={[.76, .12, 0]} rotation={[0, 0, .08]}><capsuleGeometry args={[.075, .58, 4, 8]} /><meshBasicMaterial color="#a4ff70" wireframe transparent opacity={.42} /></mesh>
-      <mesh position={[-.16, -.73, 0]}><capsuleGeometry args={[.095, .72, 4, 8]} /><meshBasicMaterial color="#a4ff70" wireframe transparent opacity={.42} /></mesh>
-      <mesh position={[.16, -.73, 0]}><capsuleGeometry args={[.095, .72, 4, 8]} /><meshBasicMaterial color="#a4ff70" wireframe transparent opacity={.42} /></mesh>
-      {[[0, 1.2, 0], [-.3, .62, 0], [.3, .62, 0], [-.76, .12, 0], [.76, .12, 0], [-.16, -.38, 0], [.16, -.38, 0], [-.16, -1.13, 0], [.16, -1.13, 0]].map((position, index) => <mesh key={index} position={position}><sphereGeometry args={[.09, 10, 8]} /><meshBasicMaterial color="#a4ff70" wireframe transparent opacity={.35} /></mesh>)}
+      <mesh position={[0, 1.58, 0]}><sphereGeometry args={[.25, 16, 12]} /><meshBasicMaterial color="#5ee7ff" wireframe transparent opacity={.55} /></mesh>
+      <mesh position={[0, 1.18, 0]}><sphereGeometry args={[.09, 10, 8]} /><meshBasicMaterial color="#5ee7ff" wireframe transparent opacity={.4} /></mesh>
+      <mesh position={[0, .66, 0]}><capsuleGeometry args={[.19, .45, 5, 10]} /><meshBasicMaterial color="#5ee7ff" wireframe transparent opacity={.42} /></mesh>
+      <mesh position={[0, .1, 0]} scale={[.82, .7, .7]}><sphereGeometry args={[.23, 12, 10]} /><meshBasicMaterial color="#5ee7ff" wireframe transparent opacity={.38} /></mesh>
+      <mesh position={[-.31, .62, 0]} rotation={[0, 0, -.26]}><capsuleGeometry args={[.075, .58, 4, 8]} /><meshBasicMaterial color="#5ee7ff" wireframe transparent opacity={.42} /></mesh>
+      <mesh position={[.31, .62, 0]} rotation={[0, 0, .26]}><capsuleGeometry args={[.075, .58, 4, 8]} /><meshBasicMaterial color="#5ee7ff" wireframe transparent opacity={.42} /></mesh>
+      <mesh position={[-.76, .12, 0]} rotation={[0, 0, -.08]}><capsuleGeometry args={[.075, .58, 4, 8]} /><meshBasicMaterial color="#5ee7ff" wireframe transparent opacity={.42} /></mesh>
+      <mesh position={[.76, .12, 0]} rotation={[0, 0, .08]}><capsuleGeometry args={[.075, .58, 4, 8]} /><meshBasicMaterial color="#5ee7ff" wireframe transparent opacity={.42} /></mesh>
+      <mesh position={[-.16, -.73, 0]}><capsuleGeometry args={[.095, .72, 4, 8]} /><meshBasicMaterial color="#5ee7ff" wireframe transparent opacity={.42} /></mesh>
+      <mesh position={[.16, -.73, 0]}><capsuleGeometry args={[.095, .72, 4, 8]} /><meshBasicMaterial color="#5ee7ff" wireframe transparent opacity={.42} /></mesh>
+      {[[0, 1.2, 0], [-.3, .62, 0], [.3, .62, 0], [-.76, .12, 0], [.76, .12, 0], [-.16, -.38, 0], [.16, -.38, 0], [-.16, -1.13, 0], [.16, -1.13, 0]].map((position, index) => <mesh key={index} position={position}><sphereGeometry args={[.09, 10, 8]} /><meshBasicMaterial color="#5ee7ff" wireframe transparent opacity={.35} /></mesh>)}
       <Grid position={[0, -1.24, 0]} args={[3, 3]} cellSize={.25} cellThickness={.5} sectionSize={1} sectionThickness={.8} fadeDistance={4} fadeStrength={2} infiniteGrid />
     </group>
   );
 }
 
 function InterestPoint({ point, status, selected, onSelect }) {
-  const colors = { ok: '#a4ff70', warn: '#ffc66d', crit: '#ff6b63', nodata: '#84958a' };
+  const colors = { ok: '#46e39a', warn: '#ffa94d', crit: '#ff5d6c', nodata: '#5a6a84' };
   const color = colors[status] || colors.nodata;
   return (
     <mesh position={point.position} onClick={(event) => { event.stopPropagation(); onSelect(point.indicatorId); }}>
@@ -63,9 +63,9 @@ export default function BodyViewer3D({ crew, indicators, latest, selected, onSel
       <div className="body-viewer">
         <div className="viewer-canvas" role="img" aria-label="Modelo corporal holográfico interactivo. Arrastra para rotar y selecciona los puntos biométricos.">
           <Canvas camera={{ position: [0, .15, 4.2], fov: 42 }} dpr={[1, 1.5]} fallback={<div className="viewer-fallback">WebGL no está disponible. Las tarjetas y lecturas siguen disponibles.</div>} onCreated={({ gl }) => gl.domElement.addEventListener('webglcontextlost', (event) => { event.preventDefault(); setWebglFailed(true); })}>
-            <color attach="background" args={['#0b130e']} />
+            <color attach="background" args={['#050b16']} />
             <ambientLight intensity={.7} />
-            <pointLight position={[2, 2, 3]} color="#a4ff70" intensity={1.3} />
+            <pointLight position={[2, 2, 3]} color="#5ee7ff" intensity={1.3} />
             <Skeleton />
             {POINTS.map((point) => {
               const indicator = indicatorFor(point.indicatorId);

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useVitals } from './hooks/useVitals';
 import { useConnection } from './hooks/useConnection';
 import { AlertsPage, CrewPage, EmergencyPage, EmptyPage, HistoryPage, LabPage, MonitorPage, RisksPage, TrendsPage } from './components/Pages';
+import Starfield from './components/Starfield';
 import './styles/tokens.css';
 import './styles/layout.css';
 import './styles/components.css';
@@ -84,6 +85,8 @@ function App() {
 
   return (
     <div className="app-shell scanlines">
+      <Starfield />
+      <div className="orbital-grid" aria-hidden="true" />
       <aside className="sidebar" aria-label="Navegación principal">
         <a className="brand" href="#/monitoreo" aria-label="Dinopad, ir a Monitoreo">
           <span className="brand-mark" aria-hidden="true">D</span>
@@ -109,7 +112,7 @@ function App() {
         {cacheWarning && <div className="cache-warning" role="status">{cacheWarning}</div>}
         <main className="page-content">
           {connectionState === 'offline' && <div className="data-cached cache-banner" role="status">SIN ENLACE · Datos en caché {lastCachedAt ? `guardados ${new Date(lastCachedAt).toLocaleString('es')}` : 'sin historial local guardado'}.</div>}
-          {route === 'monitoreo' ? <MonitorPage /> : route === 'alertas' ? <AlertsPage /> : route === 'historial' ? <HistoryPage /> : route === 'tendencias' ? <TrendsPage /> : route === 'tripulacion' ? <CrewPage /> : route === 'riesgos' ? <RisksPage /> : route === 'emergencia' ? <EmergencyPage /> : route === 'laboratorio' ? <LabPage /> : <EmptyPage title={PAGE_TITLES[route]} description="Módulo de misión." />}
+          <div className="page-enter" key={route}>{route === 'monitoreo' ? <MonitorPage /> : route === 'alertas' ? <AlertsPage /> : route === 'historial' ? <HistoryPage /> : route === 'tendencias' ? <TrendsPage /> : route === 'tripulacion' ? <CrewPage /> : route === 'riesgos' ? <RisksPage /> : route === 'emergencia' ? <EmergencyPage /> : route === 'laboratorio' ? <LabPage /> : <EmptyPage title={PAGE_TITLES[route]} description="Módulo de misión." />}</div>
         </main>
         <footer className="app-footer"><span>DINOPAD · NASA SPACE APPS 2026</span><span>Prototipo de monitoreo · No es un dispositivo médico</span></footer>
       </div>

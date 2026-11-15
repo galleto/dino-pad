@@ -5,8 +5,8 @@
   "display": "standalone",
   "start_url": "./#/monitoreo",
   "scope": "./",
-  "background_color": "#050805",
-  "theme_color": "#39ff14",
+  "background_color": "#04060c",
+  "theme_color": "#04060c",
   "icons": [
     {
       "src": "./icons/icon-192.png",
