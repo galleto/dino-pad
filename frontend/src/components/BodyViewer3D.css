@@ -8,3 +8,58 @@
 .viewer-point i { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
 .viewer-fallback { display: grid; min-height: 180px; place-items: center; padding: 18px; border: 1px dashed var(--line); color: var(--muted); font-size: 10px; text-align: center; }
 @media (max-width: 720px) { .body-viewer { grid-template-columns: minmax(0, 1fr); } .viewer-canvas { height: 260px; } .viewer-legend { min-width: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; } .viewer-point { justify-content: center; padding: 5px 2px; font-size: 7px; } }
+
+
+
+.viewer-main {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.viewer-model-switch {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.viewer-model-switch button {
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.viewer-model-switch button.active {
+  border-color: var(--line-bright);
+  background: #a4ff7012;
+  color: #a4ff70;
+}
+
+.viewer-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  text-align: center;
+}
+
+.viewer-attribution {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.5;
+  opacity: 0.75;
+}
+
+.viewer-canvas {
+  overflow: hidden;
+}
+
+.viewer-point i {
+  flex: 0 0 7px;
+}
