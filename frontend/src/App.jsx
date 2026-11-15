@@ -1,144 +1,118 @@
-import { useState } from 'react';
-import { CREW, INDICATORS, ZONES } from './data/crewData';
+import { useEffect, useState } from 'react';
 import { useVitals } from './hooks/useVitals';
-import { getStatus, STATUS_LABEL, buildAlerts } from './services/health';
-import Header from './components/Header';
-import './App.css';
+import { useConnection } from './hooks/useConnection';
+import { AlertsPage, CrewPage, EmergencyPage, EmptyPage, HistoryPage, LabPage, MonitorPage, RisksPage, TrendsPage } from './components/Pages';
+import './styles/tokens.css';
+import './styles/layout.css';
+import './styles/components.css';
+import './styles/pages.css';
 
-const CREW_LIST = Object.values(CREW);
-const INDICATOR_LIST = Object.values(INDICATORS);
+const NAV_ITEMS = [
+  ['monitoreo', '01', 'Monitoreo'],
+  ['alertas', '02', 'Alertas'],
+  ['historial', '03', 'Historial'],
+  ['tendencias', '04', 'Tendencias'],
+  ['tripulacion', '05', 'Tripulación'],
+  ['riesgos', '06', 'Riesgos NASA'],
+  ['emergencia', '07', 'Emergencia'],
+  ['laboratorio', '08', 'Laboratorio'],
+];
+
+const PAGE_TITLES = Object.fromEntries(NAV_ITEMS.map(([id, , label]) => [id, label]));
+
+function getRoute() {
+  const route = window.location.hash.replace(/^#\/?/, '');
+  return PAGE_TITLES[route] ? route : 'monitoreo';
+}
+
+function isAppInstalled() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
 
 function App() {
-  const [selectedCrewId, setSelectedCrewId] = useState(CREW_LIST[0]?.id);
+  // El frontend original era un panel de simulación; se conservan sus rangos, datos y lógica.
+  const [route, setRoute] = useState(getRoute);
+  const [pwaUpdateAvailable, setPwaUpdateAvailable] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [appInstalled, setAppInstalled] = useState(isAppInstalled);
+  const [pwaError, setPwaError] = useState(false);
+  const { crew, activeCrewId, setActiveCrewId } = useVitals();
+  const { connectionState, alerts, acknowledgeSos, acknowledgedSos, synchronized, cacheWarning, lastCachedAt } = useConnection();
+  const activeCrew = crew[activeCrewId] || Object.values(crew)[0];
+  const connectionLabel = { live: 'EN VIVO', simulator: 'SIMULADOR LOCAL', offline: 'SIN ENLACE', checking: 'CONECTANDO' }[connectionState];
+  const sosAlert = alerts.find((alert) => /sos/i.test(`${alert.title || ''} ${alert.action || ''}`) && alert.id !== acknowledgedSos);
 
-  const { latest, connected } = useVitals();
+  useEffect(() => {
+    const onHashChange = () => setRoute(getRoute());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
 
-  const selectedCrew =
-    CREW_LIST.find((crew) => crew.id === selectedCrewId) || CREW_LIST[0];
+  useEffect(() => {
+    const onUpdateAvailable = () => setPwaUpdateAvailable(true);
+    const onPwaError = () => setPwaError(true);
+    const onInstallPrompt = (event) => {
+      event.preventDefault();
+      if (!isAppInstalled()) setInstallPrompt(event);
+    };
+    const onInstalled = () => {
+      setAppInstalled(true);
+      setInstallPrompt(null);
+    };
+    window.addEventListener('dinopad-update-available', onUpdateAvailable);
+    window.addEventListener('dinopad-pwa-error', onPwaError);
+    window.addEventListener('beforeinstallprompt', onInstallPrompt);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => {
+      window.removeEventListener('dinopad-update-available', onUpdateAvailable);
+      window.removeEventListener('dinopad-pwa-error', onPwaError);
+      window.removeEventListener('beforeinstallprompt', onInstallPrompt);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
+  }, []);
 
-  if (!selectedCrew) {
-    return <main>No hay tripulantes registrados.</main>;
-  }
-
-  const latestByIndicator = latest[selectedCrew.id] || {};
-  const alerts = buildAlerts(selectedCrew, latestByIndicator);
+  const installApp = async () => {
+    if (!installPrompt) return;
+    try {
+      await installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      if (choice.outcome !== 'accepted') setInstallPrompt(null);
+    } catch {
+      setPwaError(true);
+    }
+  };
 
   return (
-    <div className="app">
-      {/* Componente nuevo: reemplaza al <header className="topbar"> anterior */}
-      <Header connected={connected} />
-
-      <main className="app-content">
-        <section className="mission-heading">
-          <div>
-            <p className="eyebrow">NASA Space Health Project</p>
-            <h2>Mission Health Dashboard</h2>
-            <p>Monitoreo de salud de la tripulación</p>
-          </div>
-        </section>
-
-        <section className="crew-section">
-          <h3>Tripulación</h3>
-
-          <div className="crew-selector">
-            {CREW_LIST.map((crew) => (
-              <button
-                key={crew.id}
-                type="button"
-                aria-pressed={selectedCrewId === crew.id}
-                className={
-                  selectedCrewId === crew.id
-                    ? 'crew-button active'
-                    : 'crew-button'
-                }
-                onClick={() => setSelectedCrewId(crew.id)}
-              >
-                <span className="crew-avatar">
-                  {crew.name.charAt(0).toUpperCase()}
-                </span>
-
-                <span>
-                  <strong>{crew.name}</strong>
-                  <small>{crew.role}</small>
-                </span>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="dashboard-grid">
-          <div className="panel vitals-panel">
-            <div className="panel-heading">
-              <div>
-                <p className="eyebrow">Biometric data</p>
-                <h3>Indicadores de salud</h3>
-              </div>
-              <span className="live-label">● SIMULADO</span>
-            </div>
-
-            <div className="vitals-grid">
-              {INDICATOR_LIST.map((indicator) => {
-                const reading = latestByIndicator[indicator.id];
-                const status = getStatus(indicator, selectedCrew, reading);
-
-                return (
-                  <article className="vital-card" key={indicator.id}>
-                    <div className="vital-card-top">
-                      <span>{indicator.name}</span>
-                      <span className={`status status-${status}`}>
-                        {STATUS_LABEL[status] || status}
-                      </span>
-                    </div>
-
-                    <div className="vital-value">
-                      {reading?.quality === 'no_signal'
-                        ? '--'
-                        : reading?.value ?? '--'}
-                      <small>{indicator.unit}</small>
-                    </div>
-
-                    <p className="vital-zone">
-                      Zona: {ZONES[indicator.zone]?.name || 'General'}
-                    </p>
-                  </article>
-                );
-              })}
-            </div>
-          </div>
-
-          <aside className="panel alerts-panel">
-            <div className="panel-heading">
-              <div>
-                <p className="eyebrow">Health notifications</p>
-                <h3>Alertas</h3>
-              </div>
-              <span className="alert-count">{alerts.length}</span>
-            </div>
-
-            {alerts.length === 0 ? (
-              <p className="empty-alerts">Sin alertas por el momento.</p>
-            ) : (
-              <div className="alerts-list">
-                {alerts.map((alert) => (
-                  <article
-                    className={`alert-card alert-${alert.level}`}
-                    key={alert.id}
-                  >
-                    <strong>{alert.title}</strong>
-                    <p>{alert.message}</p>
-                    <small>{alert.action}</small>
-                  </article>
-                ))}
-              </div>
-            )}
-          </aside>
-        </section>
-      </main>
-
-      <footer className="app-footer">
-        <span>SPACEHEALTH · PROTOTIPO</span>
-        <span>Datos simulados · No utilizar para decisiones médicas</span>
-      </footer>
+    <div className="app-shell scanlines">
+      <aside className="sidebar" aria-label="Navegación principal">
+        <a className="brand" href="#/monitoreo" aria-label="Dinopad, ir a Monitoreo">
+          <span className="brand-mark" aria-hidden="true">D</span>
+          <span className="brand-copy"><strong>DINOPAD</strong><small>SISTEMA DE SALUD ESPACIAL</small></span>
+        </a>
+        <div className="nav-caption">CENTRO DE MISIÓN</div>
+        <nav className="nav-list">
+          {NAV_ITEMS.map(([id, number, label]) => (
+            <a key={id} href={`#/${id}`} className={`nav-link${route === id ? ' active' : ''}`} aria-label={label} aria-current={route === id ? 'page' : undefined}>
+              <span className="nav-number">{number}</span><span className="nav-label">{label}</span>
+            </a>
+          ))}
+        </nav>
+        <div className="sidebar-bottom"><span className="status-dot" /> SISTEMA OPERATIVO <small>CONTROL DE MISIÓN · 2026</small></div>
+      </aside>
+      <div className="workspace">
+        <header className="topbar">
+          <div className="topbar-title"><span className="eyebrow">DINOPAD / {String(NAV_ITEMS.find(([id]) => id === route)?.[0] || '').toUpperCase()}</span><h1>{PAGE_TITLES[route]}</h1></div>
+          <div className="topbar-meta"><span className={`connection-pill connection-${connectionState}`} role="status"><i /> {connectionLabel}</span>{pwaUpdateAvailable && <button className="pwa-action" onClick={() => window.location.reload()}>Nueva versión disponible, recargar</button>}{installPrompt && !appInstalled && <button className="pwa-action" onClick={installApp}>Instalable · Instalar</button>}{pwaError && <span className="pwa-status" role="status">PWA no disponible</span>}<label className="crew-chip"><span className="avatar">{activeCrew?.name?.slice(0, 1) || '—'}</span><span><select aria-label="Tripulante activo" value={activeCrew?.id || ''} onChange={(event) => setActiveCrewId(event.target.value)}>{Object.values(crew).map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</select><small>TRIPULANTE ACTIVO</small></span></label></div>
+        </header>
+        {sosAlert && <div className="sos-banner" role="alert"><span className="sos-beacon" /><div><strong>ALERTA SOS RECIBIDA</strong><p>{sosAlert.message || 'Se requiere atención inmediata de la tripulación.'}</p></div><button className="button button-danger" onClick={() => acknowledgeSos(sosAlert.id)}>Reconocer SOS</button></div>}
+        {synchronized && <div className="sync-notice" role="status">● Sincronizado con el backend</div>}
+        {cacheWarning && <div className="cache-warning" role="status">{cacheWarning}</div>}
+        <main className="page-content">
+          {connectionState === 'offline' && <div className="data-cached cache-banner" role="status">SIN ENLACE · Datos en caché {lastCachedAt ? `guardados ${new Date(lastCachedAt).toLocaleString('es')}` : 'sin historial local guardado'}.</div>}
+          {route === 'monitoreo' ? <MonitorPage /> : route === 'alertas' ? <AlertsPage /> : route === 'historial' ? <HistoryPage /> : route === 'tendencias' ? <TrendsPage /> : route === 'tripulacion' ? <CrewPage /> : route === 'riesgos' ? <RisksPage /> : route === 'emergencia' ? <EmergencyPage /> : route === 'laboratorio' ? <LabPage /> : <EmptyPage title={PAGE_TITLES[route]} description="Módulo de misión." />}
+        </main>
+        <footer className="app-footer"><span>DINOPAD · NASA SPACE APPS 2026</span><span>Prototipo de monitoreo · No es un dispositivo médico</span></footer>
+      </div>
     </div>
   );
 }

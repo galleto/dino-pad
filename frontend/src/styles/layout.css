@@ -1,0 +1,75 @@
+#root { min-height: 100vh; }
+.app-shell { display: flex; min-height: 100vh; }
+.sidebar { position: fixed; z-index: 20; inset: 0 auto 0 0; display: flex; width: 252px; flex-direction: column; padding: 22px 14px 18px; border-right: 1px solid var(--line); background: #0a100c; transition: width .2s ease; }
+.brand { display: flex; align-items: center; gap: 12px; padding: 0 8px 26px; text-decoration: none; }
+.brand-mark { display: grid; width: 42px; height: 42px; place-items: center; border: 1px solid var(--green-dim); color: var(--green); font-size: 24px; font-weight: 800; box-shadow: inset 0 0 16px #a4ff7019, 0 0 18px #a4ff7012; }
+.brand-copy { display: grid; gap: 4px; letter-spacing: .12em; }
+.brand-copy strong { color: var(--green); font-size: 15px; }
+.brand-copy small, .sidebar-bottom small { color: var(--muted); font-size: 9px; letter-spacing: .08em; }
+.nav-caption, .eyebrow { color: var(--green-dim); font-size: 10px; letter-spacing: .14em; }
+.nav-caption { padding: 0 10px 12px; }
+.nav-list { display: grid; gap: 4px; }
+.nav-link { display: flex; min-height: 43px; align-items: center; gap: 12px; padding: 0 10px; border: 1px solid transparent; color: var(--muted); font-size: 12px; text-decoration: none; transition: .15s ease; }
+.nav-link:hover { border-color: var(--line); color: var(--text); background: #ffffff05; }
+.nav-link.active { border-color: #527346; color: var(--green); background: #a4ff700b; }
+.nav-number { color: #56665a; font-size: 10px; }
+.nav-link.active .nav-number { color: var(--green-dim); }
+.sidebar-bottom { display: grid; grid-template-columns: 10px 1fr; align-items: center; gap: 7px; margin-top: auto; padding: 14px 10px 0; border-top: 1px solid var(--line); color: var(--green-dim); font-size: 9px; letter-spacing: .08em; }
+.sidebar-bottom small { grid-column: 2; }
+.status-dot, .connection-pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px #a4ff7099; }
+.workspace { display: flex; width: calc(100% - 252px); min-width: 0; min-height: 100vh; flex-direction: column; margin-left: 252px; transition: width .2s ease, margin-left .2s ease; }
+.topbar { position: sticky; z-index: 10; top: 0; display: flex; min-height: 78px; align-items: center; justify-content: space-between; gap: 20px; padding: 12px 30px; border-bottom: 1px solid var(--line); background: #080d0aee; backdrop-filter: blur(12px); }
+.topbar-title { display: grid; gap: 4px; }
+.topbar-title h1 { margin: 0; font-size: 17px; font-weight: 500; letter-spacing: .04em; }
+.topbar-meta { display: flex; align-items: center; gap: 22px; }
+.connection-pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid var(--line); color: var(--green); font-size: 9px; letter-spacing: .07em; white-space: nowrap; }
+.connection-pill i { flex: 0 0 7px; }
+.connection-simulator { border-color: #725d32; color: var(--amber); }
+.connection-simulator i { background: var(--amber); box-shadow: 0 0 10px #ffc66d99; }
+.connection-offline { border-color: #8d403a; color: var(--red); }
+.connection-offline i { background: var(--red); box-shadow: 0 0 10px #ff6b6399; }
+.connection-checking { color: var(--muted); }
+.pwa-action { border: 0; padding: 6px 8px; background: transparent; color: var(--green); font: inherit; font-size: 9px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.pwa-action:hover { color: var(--text); }
+.pwa-status { color: var(--muted); font-size: 9px; }
+.crew-chip { display: flex; align-items: center; gap: 10px; font-size: 11px; }
+.crew-chip select { max-width: 154px; border: 0; padding: 0; color: var(--text); background: transparent; font-size: 10px; }
+.crew-chip small { display: block; padding-top: 3px; color: var(--muted); font-size: 8px; letter-spacing: .1em; }
+.avatar { display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid var(--line-bright); color: var(--green); font-size: 10px; }
+.page-content { width: 100%; min-width: 0; max-width: 1580px; flex: 1; margin: 0 auto; padding: 28px 30px 36px; }
+.app-footer { display: flex; justify-content: space-between; gap: 12px; padding: 13px 30px; border-top: 1px solid var(--line); color: var(--muted); font-size: 9px; letter-spacing: .08em; }
+.nav-compact .sidebar { width: 76px; }
+.nav-compact .brand { justify-content: center; padding-inline: 0; }
+.nav-compact .brand-copy, .nav-compact .nav-caption, .nav-compact .nav-label, .nav-compact .sidebar-bottom { display: none; }
+.nav-compact .nav-link { justify-content: center; padding: 0; }
+.nav-compact .nav-number { font-size: 11px; }
+.nav-compact .workspace { width: calc(100% - 76px); margin-left: 76px; }
+.page-placeholder { padding: 36px; }
+.page-placeholder h2 { margin: 12px 0 8px; font-size: 20px; }
+.page-placeholder p { color: var(--muted); font-size: 12px; }
+
+@media (max-width: 1100px) {
+  .sidebar { width: 76px; padding-inline: 10px; }
+  .brand { justify-content: center; padding-inline: 0; }
+  .brand-copy, .nav-caption, .nav-label, .sidebar-bottom { display: none; }
+  .nav-link { justify-content: center; padding: 0; }
+  .nav-number { font-size: 11px; }
+  .workspace, .nav-compact .workspace { width: calc(100% - 76px); margin-left: 76px; }
+}
+@media (max-width: 720px) {
+  .sidebar, .nav-compact .sidebar { position: fixed; inset: auto 0 0; display: block; width: 100%; padding: 0; border-top: 1px solid var(--line-bright); border-right: 0; background: #0a100cf5; }
+  .brand, .nav-caption, .sidebar-bottom { display: none; }
+  .nav-list { display: flex; justify-content: space-around; gap: 0; }
+  .nav-link { min-width: 0; min-height: 58px; flex: 1; flex-direction: column; justify-content: center; gap: 3px; padding: 4px 1px; border: 0; font-size: 8px; }
+  .nav-number { font-size: 8px; }
+  .nav-label { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .workspace, .nav-compact .workspace { width: 100%; margin-left: 0; padding-bottom: 58px; }
+  .topbar { min-height: 66px; padding: 10px 14px; }
+  .topbar-title h1 { font-size: 14px; }
+  .topbar-meta { gap: 8px; }
+  .crew-chip { display: none; }
+  .connection-pill { font-size: 8px; }
+  .pwa-action { max-width: 116px; padding: 4px; font-size: 8px; }
+  .page-content { padding: 18px 14px 24px; }
+  .app-footer { padding: 12px 14px; font-size: 8px; }
+}

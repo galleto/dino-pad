@@ -1,0 +1,35 @@
+:root {
+  font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  color: #d8e6d9;
+  background: #080d0a;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: dark;
+  --bg: #080d0a;
+  --bg-raised: #0c140f;
+  --panel: #0e1711;
+  --panel-hi: #111d14;
+  --line: #23332a;
+  --line-bright: #38503d;
+  --text: #d8e6d9;
+  --muted: #84958a;
+  --green: #a4ff70;
+  --green-dim: #5da64a;
+  --amber: #ffc66d;
+  --red: #ff6b63;
+  --blue: #78c9d4;
+  --mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--bg); color: var(--text); }
+button, select { font: inherit; }
+button, a, select { -webkit-tap-highlight-color: transparent; }
+a { color: inherit; }
+button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
+::selection { color: #081009; background: var(--green); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
