@@ -8,7 +8,8 @@ Bajada (base -> placa): la web hace POST /api/device/message. Queda pendiente y 
   "mostrado" (salió en pantalla) y "leido" (la persona lo cerró con un botón).
 LoRa: dinopad/lora actualiza el estado del envío por radio del último mensaje de la placa.
 
-Se guarda en memoria (últimos 200): un reinicio del servidor borra el historial.
+Memoria (últimos 200) + tabla device_messages en la base (si hay DATABASE_URL): el historial
+sobrevive a reinicios y redespliegues. Sin base, solo memoria.
 """
 import re
 import threading
@@ -19,6 +20,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from backend.db import load_messages, save_message
 from backend.models import CrewId
 
 MAX_TEXTO = 60          # la pantalla de la placa muestra 3 líneas de ~26 caracteres
@@ -66,11 +68,26 @@ def texto_pantalla(texto: str, maximo: int = MAX_TEXTO) -> str:
     return re.sub(r"\s+", " ", t).strip()[:maximo]
 
 
+def _persistir(m: dict) -> None:
+    save_message(publico(m))
+
+
 def _guardar(m: dict) -> dict:
     with _lock:
         _mensajes.append(m)
         del _mensajes[:-200]
+    _persistir(m)
     return m
+
+
+def cargar_desde_db() -> int:
+    """Llena la memoria con lo guardado en la base (al arrancar el servidor)."""
+    filas = load_messages(200)
+    with _lock:
+        ids = {m["id"] for m in _mensajes}
+        _mensajes[:0] = [{**f, "_enviado": 0.0} for f in filas if f["id"] not in ids]
+        del _mensajes[:-200]
+    return len(filas)
 
 
 def historial(crew_id: Optional[str] = None, limite: int = 50) -> list:
@@ -102,11 +119,15 @@ def alerta_de_subida(m: dict, nombre: str) -> dict:
 
 def actualizar_lora(est: EstadoLora) -> Optional[dict]:
     with _lock:
+        encontrado = None
         for m in reversed(_mensajes):
             if m["direccion"] == "subida" and m["crewId"] == est.crewId:
                 m["lora"] = est.estado
-                return dict(m)
-    return None
+                encontrado = dict(m)
+                break
+    if encontrado:
+        _persistir(encontrado)
+    return encontrado
 
 
 def crear_bajada(req: MensajeBajada) -> dict:
@@ -128,7 +149,7 @@ def crear_bajada(req: MensajeBajada) -> dict:
 def pendientes_para(crew_ids: set, maximo: int = 2) -> list:
     """Mensajes de la base que todavía no salieron en la pantalla (para la respuesta de ingesta)."""
     ahora = time.time()
-    salida = []
+    salida, cambiados = [], []
     with _lock:
         for m in _mensajes:
             if m["direccion"] != "bajada" or m["crewId"] not in crew_ids or m["estado"] not in ("pendiente", "enviado"):
@@ -137,20 +158,27 @@ def pendientes_para(crew_ids: set, maximo: int = 2) -> list:
                 continue
             m["estado"], m["_enviado"] = "enviado", ahora
             salida.append({"id": m["id"], "texto": m["texto"], "de": m["de"]})
+            cambiados.append(dict(m))
             if len(salida) >= maximo:
                 break
+    for m in cambiados:
+        _persistir(m)
     return salida
 
 
 def registrar_acuse(ac: AcuseMensaje) -> Optional[dict]:
     orden = {"pendiente": 0, "enviado": 1, "mostrado": 2, "leido": 3}
+    encontrado = None
     with _lock:
         for m in _mensajes:
             if m["id"] == ac.id and m["direccion"] == "bajada":
                 if orden[ac.estado] > orden.get(m["estado"], 0):
                     m["estado"] = ac.estado
-                return dict(m)
-    return None
+                encontrado = dict(m)
+                break
+    if encontrado:
+        _persistir(encontrado)
+    return encontrado
 
 
 def publico(m: dict) -> dict:

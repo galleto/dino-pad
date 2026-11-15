@@ -11,6 +11,12 @@ services:
     buildCommand: pip install -r backend/requirements.txt
     startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
+    # Solo redesplegar si cambia el backend o este archivo (no por cambios del firmware o la web):
+    # cada redespliegue deja ~3 min sin servicio.
+    buildFilter:
+      paths:
+        - backend/**
+        - render.yaml
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.8

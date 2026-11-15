@@ -93,6 +93,22 @@ def init_db() -> bool:
                     );
                 """)
 
+                # 4. Mensajes base <-> DINO PAD (backend/mensajes.py)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS device_messages (
+                        id VARCHAR(40) PRIMARY KEY,
+                        crew_id VARCHAR(32) NOT NULL,
+                        device_id VARCHAR(64),
+                        direccion VARCHAR(8) NOT NULL,
+                        texto TEXT NOT NULL,
+                        ts TIMESTAMPTZ NOT NULL,
+                        estado VARCHAR(16) NOT NULL,
+                        lora VARCHAR(64),
+                        de VARCHAR(32)
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_device_messages_ts ON device_messages (ts DESC);
+                """)
+
                 conn.commit()
 
         _db_available = True
@@ -109,6 +125,46 @@ def init_db() -> bool:
                 pass
             _pool = None
         return False
+
+
+def save_message(m: dict) -> None:
+    """Guarda o actualiza un mensaje base <-> DINO PAD (estado y LoRa cambian después)."""
+    if not _db_available or not _pool:
+        return
+    try:
+        with _pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO device_messages (id, crew_id, device_id, direccion, texto, ts, estado, lora, de)
+                    VALUES (%s, %s, %s, %s, %s, to_timestamp(%s / 1000.0), %s, %s, %s)
+                    ON CONFLICT (id) DO UPDATE SET estado = EXCLUDED.estado, lora = EXCLUDED.lora,
+                        device_id = COALESCE(EXCLUDED.device_id, device_messages.device_id);
+                """, (m["id"], m["crewId"], m.get("deviceId"), m["direccion"], m["texto"], m["timestamp"],
+                      m["estado"], (m.get("lora") or None) and str(m["lora"])[:64], m.get("de")))
+            conn.commit()
+    except Exception as e:
+        logger.warning("[DB ERROR] Error al guardar mensaje: %s", e)
+
+
+def load_messages(limit: int = 200) -> List[dict]:
+    """Últimos mensajes, del más viejo al más nuevo (para llenar la memoria al arrancar)."""
+    if not _db_available or not _pool:
+        return []
+    try:
+        with _pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT id, crew_id, device_id, direccion, texto, (EXTRACT(EPOCH FROM ts) * 1000)::BIGINT AS ms,
+                           estado, lora, de
+                    FROM device_messages ORDER BY ts DESC LIMIT %s;
+                """, (limit,))
+                filas = cur.fetchall()
+        return [{"id": f["id"], "crewId": f["crew_id"], "deviceId": f["device_id"], "direccion": f["direccion"],
+                 "texto": f["texto"], "timestamp": int(f["ms"]), "estado": f["estado"], "lora": f["lora"], "de": f["de"]}
+                for f in reversed(filas)]
+    except Exception as e:
+        logger.warning("[DB ERROR] Error al leer mensajes: %s", e)
+        return []
 
 
 def close_db():

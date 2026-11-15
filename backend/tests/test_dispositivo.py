@@ -165,6 +165,7 @@ def main():
     settings.mqtt_host = "127.0.0.1"
     settings.mqtt_port = PUERTO_MQTT
     settings.mqtt_tls = False
+    settings.gemini_apikey = ""   # nunca llamar a Gemini de verdad desde la prueba
     settings.device_token = TOKEN
     settings.cors_origins = ORIGEN_PAGINA   # antes de importar la app (el CORS se arma al importar)
     settings.database_url = settings.timescale_service_url = ""

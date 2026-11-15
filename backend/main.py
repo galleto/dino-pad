@@ -131,6 +131,9 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("[DB] TimescaleDB no disponible. Operando en modo degradado en memoria.")
 
+    # Historial de mensajes base <-> DINO PAD guardado en la base
+    logger.info("[MENSAJES] %d mensajes recuperados de la base", msj.cargar_desde_db())
+
     # Conectar observadores de MQTT
     mqtt_service.on_vitals(handle_incoming_vital)
     mqtt_service.on_alert(handle_incoming_alert_msg)
