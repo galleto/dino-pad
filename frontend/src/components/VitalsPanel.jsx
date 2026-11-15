@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import OrganViewer3D from './OrganViewer3D';
+import { getGlossaryEntry } from '../data/glossary';
 import {
   getVitalAssessment,
   SIMULATOR_LIMITS,
@@ -107,7 +108,7 @@ function SimulatorSlider({ slider, unit, value, onChange }) {
   );
 }
 
-export default function VitalsPanel({ selected, latest, history }) {
+export default function VitalsPanel({ selected, indicatorData, history }) {
   const [simulation, setSimulation] = useState(createInitialSimulation);
   const [scenario, setScenario] = useState('reposo');
   const indicatorId = VITALS_CONFIG[selected] ? selected : 'hr';
@@ -117,7 +118,6 @@ export default function VitalsPanel({ selected, latest, history }) {
     () => getVitalAssessment(indicatorId, values),
     [indicatorId, values],
   );
-  const indicator = latest?.[indicatorId];
   const historyForSelected = simulation.history[indicatorId] || history?.[indicatorId] || [];
 
   useEffect(() => {
@@ -163,9 +163,18 @@ export default function VitalsPanel({ selected, latest, history }) {
   const rangeValue = indicatorId === 'bp' ? values.bp : values[config.mainKey];
   const statusColor = STATUS_COLORS[assessment.status] || STATUS_COLORS.ok;
   const selectedScenario = SIMULATOR_SCENARIOS[scenario];
+  const glossary = getGlossaryEntry(indicatorId);
+
+  if (!selected || !VITALS_CONFIG[selected]) {
+    return (
+      <section className="vitals-panel vitals-panel-empty" aria-label="Detalle de indicadores">
+        <p>Selecciona un indicador para ver su detalle y órgano.</p>
+      </section>
+    );
+  }
 
   return (
-    <section className="vitals-panel" aria-label={`Indicador ${config.name}`}>
+    <section className="vitals-panel" aria-label={`Indicador ${indicatorData?.name || config.name}`}>
       <div className="vitals-main-layout">
         <div className="vitals-organ-column">
           <div className="vitals-organ-heading">
@@ -184,7 +193,7 @@ export default function VitalsPanel({ selected, latest, history }) {
           <div className="vitals-readout-heading">
             <div>
               <span className="eyebrow">{config.name.toUpperCase()}</span>
-              <h3>{indicator?.name || config.name}</h3>
+              <h3>{indicatorData?.name || config.name}</h3>
             </div>
             <span className={`vitals-badge status-${assessment.status}`}>{assessment.term}</span>
           </div>
@@ -210,10 +219,16 @@ export default function VitalsPanel({ selected, latest, history }) {
               <span>{assessment.meaning}</span>
             </div>
           )}
-          <div className="vitals-advice">
-            <p>{assessment.meaning}</p>
-            <strong>Recomendación: {assessment.recommendation}</strong>
+          <div className="vitals-action">
+            <strong>Qué hacer</strong>
+            <p>{indicatorData?.action || assessment.recommendation}</p>
+            {indicatorData?.action && <small>Simulación: {assessment.recommendation}</small>}
           </div>
+          <details className="vitals-explanation">
+            <summary>¿Qué significa {glossary.label}?</summary>
+            <p>{glossary.definition}</p>
+            {indicatorData?.why && <p><strong>En la misión:</strong> {indicatorData.why}</p>}
+          </details>
           <div className="vitals-trend-heading">
             <span>TENDENCIA · ÚLTIMAS 30 LECTURAS</span>
             <small>simulada</small>

@@ -4,7 +4,6 @@ import { sourceLabel } from '../services/readings';
 import VitalCard from './VitalCard';
 import HealthAlerts from './HealthAlerts';
 import CrewSelector from './CrewSelector';
-import Term from './Term';
 import VitalsPanel from './VitalsPanel';
 
 const BodyViewer3D = lazy(() => import('./BodyViewer3D'));
@@ -29,18 +28,33 @@ export default function VitalMetrics({ data, onSelectIndicator }) {
         <div className="monitor-main">
           <div className="vitals-grid">
             {orderedIndicators.map((indicator) => (
-              <VitalCard key={indicator.id} indicator={indicator} crew={astronaut} reading={current[indicator.id]} history={history[activeCrewId]?.[indicator.id] || []} selected={selected === indicator.id} onSelect={() => { setSelected(indicator.id); onSelectIndicator?.(indicator.id); }} />
+              <VitalCard
+                key={indicator.id}
+                indicator={indicator}
+                crew={astronaut}
+                reading={current[indicator.id]}
+                selected={selected === indicator.id}
+                onSelect={() => {
+                  const nextSelected = selected === indicator.id ? '' : indicator.id;
+                  setSelected(nextSelected);
+                  onSelectIndicator?.(nextSelected);
+                }}
+              />
             ))}
           </div>
           <section className="panel body-panel">
             <div className="panel-heading"><div><span className="eyebrow">MAPA BIOMÉTRICO</span><h2>Telemetría corporal</h2></div><span className="tag">SELECCIONA UN PUNTO</span></div>
             {showFullBodyViewer && <Suspense fallback={<div className="viewer-fallback">Preparando visor holográfico…</div>}><BodyViewer3D crew={astronaut} indicators={indicators} latest={current} selected={selected} onSelect={setSelected} /></Suspense>}
-            <VitalsPanel selected={selected || 'hr'} latest={current} history={history[activeCrewId] || {}} />
+            <VitalsPanel
+              selected={selected}
+              indicatorData={indicators[selected]}
+              history={history[activeCrewId] || {}}
+            />
           </section>
         </div>
         <aside className="monitor-aside">
           <section className="panel side-panel"><div className="panel-heading"><div><span className="eyebrow">PRIORIDAD</span><h2>Alertas activas</h2></div><span className="count-badge">{localAlerts.length}</span></div><HealthAlerts alerts={localAlerts.slice(0, 4)} crewById={crew} latest={latest} compact /></section>
-          <section className="panel side-panel"><div className="panel-heading"><div><span className="eyebrow">TELEMETRÍA</span><h2>Últimos eventos</h2></div></div><div className="event-list">{orderedIndicators.slice(0, 5).map((indicator) => { const reading = current[indicator.id]; return <div className="event-row" key={indicator.id}><span className={`event-marker ${reading?.source === 'simulated' ? 'event-sim' : ''}`} /><span><strong><Term id={indicator.id}>{indicator.name}</Term></strong><small>{reading?.quality === 'no_signal' ? 'sin señal' : reading?.timestamp ? new Date(Number(reading.timestamp) || reading.timestamp).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Esperando lectura'}{reading ? ` · ${sourceLabel(reading.source)}` : ''}</small></span><b>{reading?.value ?? '—'} {reading?.value != null ? indicator.unit : ''}</b></div>; })}</div></section>
+          <section className="panel side-panel"><div className="panel-heading"><div><span className="eyebrow">TELEMETRÍA</span><h2>Últimos eventos</h2></div></div><div className="event-list">{orderedIndicators.slice(0, 5).map((indicator) => { const reading = current[indicator.id]; return <div className="event-row" key={indicator.id}><span className={`event-marker ${reading?.source === 'simulated' ? 'event-sim' : ''}`} /><span><strong>{indicator.name}</strong><small>{reading?.quality === 'no_signal' ? 'sin señal' : reading?.timestamp ? new Date(Number(reading.timestamp) || reading.timestamp).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Esperando lectura'}{reading ? ` · ${sourceLabel(reading.source)}` : ''}</small></span><b>{reading?.value ?? '—'} {reading?.value != null ? indicator.unit : ''}</b></div>; })}</div></section>
         </aside>
       </section>
     </div>
