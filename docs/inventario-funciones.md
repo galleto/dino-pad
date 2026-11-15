@@ -180,7 +180,7 @@ No se quitan; el rediseño los hace visibles.
 | [x] | Dossier por zona: `what`, `why`, `how`, `action`, `hazards` de crewData.js ya visibles (sección 12) | B: Playwright |
 | [x] | Botón "¿Por qué importa?" en cada indicador | B: Playwright |
 | [x] | Latido del corazón al ritmo de la FC, con el origen de la lectura | B: Playwright (`--latido`) |
-| [ ] | Vista 3D con WebGL real | pendiente (sin WebGL en la prueba; se ve el respaldo) |
+| [x] | Figura 3D (vista principal desde el 15/11): 11 zonas, giro, arrastre, rótulos como botones; 2D como alternativa y respaldo sin WebGL | Playwright con WebGL y con WebGL desactivado |
 
 ### Pieza C (DINO PAD EN VIVO)
 

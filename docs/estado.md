@@ -83,6 +83,17 @@ la fuente contra el dispositivo físico, toque con dos dedos en un celular real.
 - Capturas de celular de D, G y H revisadas; cabecera en celular corregida (la píldora se cortaba).
 - La insignia EN VIVO aclara que solo las lecturas vienen del backend; estado, ambiente y nodos siguen DEMO.
 
+## Figura 3D como vista principal (pedido del usuario, 15/11/2026)
+- `BodyViewer3D.jsx` reescrito: cuerpo volumétrico de anillos (medidas en `cuerpo.js`, compartidas
+  con la figura 2D), 11 zonas 3D con el color del semáforo, corazón que late con la FC, giro
+  automático y arrastre, rótulos HTML (botones) con línea guía al órgano proyectado.
+- Monitoreo abre en 3D; botones 3D / 2D. Sin WebGL cae a la figura 2D con aviso.
+- Probado con Playwright Firefox (sí tiene WebGL por software): selección por rótulo, arrastre,
+  cambio 3D/2D/3D, celular, y con `webgl.disabled` el respaldo 2D. Sin errores de consola.
+- Corregido: al pasar a 2D la pérdida de contexto del lienzo deshabilitaba el botón 3D.
+- Sin verificar: clic directo sobre un órgano 3D (se probó la selección por rótulo), y fluidez
+  en el equipo del escenario (three.js pesa 942 kB, se descarga aparte al abrir Monitoreo).
+
 ## Pendiente / ideas
 - Probar con backend real (EN VIVO, SOS, alerta de radiación) y con el dispositivo.
 - Confirmar las 4 fuentes no leídas y las referencias de Mars24.

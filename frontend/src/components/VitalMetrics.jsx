@@ -10,7 +10,8 @@ import TrazoEcg from './TrazoEcg';
 import { useZona } from './seleccion';
 import { ZONA_INFO } from './zonasCuerpo';
 
-// El visor 3D (three.js) es opcional y solo se descarga al pedir "Vista 3D".
+// La figura 3D (three.js) es la vista principal; se descarga aparte y, si el navegador
+// no tiene WebGL, se usa la figura 2D.
 const BodyViewer3D = lazy(() => import('./BodyViewer3D'));
 
 export default function VitalMetrics({ data, onSelectIndicator }) {
@@ -18,7 +19,9 @@ export default function VitalMetrics({ data, onSelectIndicator }) {
   const astronaut = crew[activeCrewId];
   const current = latest[activeCrewId] || {};
   const [selected, setSelected] = useZona();
-  const [vista, setVista] = useState('figura');
+  const [vista, setVista] = useState('3d');
+  const [sin3d, setSin3d] = useState(false);
+  const fallo3d = useCallback(() => { setSin3d(true); setVista('figura'); }, []);
   const hasReading = Object.values(current).some((reading) => reading?.quality !== 'no_signal' && reading?.value != null);
   const status = hasReading ? getOverallStatus(astronaut, current) : 'warn';
   const localAlerts = alerts.filter((alert) => alert.crewId === activeCrewId);
@@ -45,13 +48,14 @@ export default function VitalMetrics({ data, onSelectIndicator }) {
           <header className="col-head">
             <h2>Telemetría corporal <small>mapa biométrico</small></h2>
             <div className="vista-toggle" role="group" aria-label="Tipo de vista del cuerpo">
-              <button type="button" aria-pressed={vista === 'figura'} onClick={() => setVista('figura')}>Figura</button>
-              <button type="button" aria-pressed={vista === '3d'} onClick={() => setVista('3d')}>Vista 3D</button>
+              <button type="button" aria-pressed={vista === '3d'} disabled={sin3d} onClick={() => setVista('3d')}>3D</button>
+              <button type="button" aria-pressed={vista === 'figura'} onClick={() => setVista('figura')}>2D</button>
             </div>
           </header>
           {vista === 'figura'
             ? <FiguraHumana crew={astronaut} indicators={indicators} latest={current} selected={selected} onSelect={elegir} />
-            : <Suspense fallback={<div className="viewer-fallback">Preparando visor holográfico…</div>}><BodyViewer3D crew={astronaut} indicators={indicators} latest={current} selected={selected} onSelect={elegir} /></Suspense>}
+            : <Suspense fallback={<div className="viewer-fallback">Preparando la figura 3D…</div>}><BodyViewer3D crew={astronaut} indicators={indicators} latest={current} selected={selected} onSelect={elegir} onFallo={fallo3d} /></Suspense>}
+          {sin3d && <p className="figura-aviso" role="status">Este navegador no puede dibujar la figura 3D (sin WebGL): se muestra la versión 2D.</p>}
           <p className="figura-pie" role="status">{seleccionado ? <><strong>{seleccionado.name}.</strong> {seleccionado.what}</> : ZONA_INFO[selected] ? <><strong>{ZONA_INFO[selected].titulo}.</strong> {ZONA_INFO[selected].funcion}</> : 'Selecciona un punto: toca una zona del cuerpo o un indicador.'}</p>
           <div className="ecg-fila"><TrazoEcg bpm={fc?.quality === 'no_signal' ? 0 : fc?.value} status={fc && indicators.hr ? getStatus(indicators.hr, astronaut, fc) : 'nodata'} /><span>Trazo ilustrativo al ritmo de la FC; no es un electrocardiograma <Origen tipo="demo" compact /></span></div>
           <p className="figura-leyenda"><span>● normal</span><span>▲ atención</span><span>■ crítico</span><span>○ sin señal</span><span>◇ sin sensor</span>{fc?.value != null && fc.quality !== 'no_signal' && <span className="figura-latido">El corazón late a {fc.value} lpm <Origen source={fc.source} compact /></span>}</p>

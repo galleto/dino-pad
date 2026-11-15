@@ -37,7 +37,7 @@ build de producción con el simulador local. Lo que no se pudo comprobar se dice
 | 6 | Semáforo de colores | **cumple** | Toda la interfaz, siempre con glifo además del color | sí |
 | 7 | Gráficas dinámicas | **cumple** | Minigráficas suaves, dossier, Historial, Bitácora, trazo tipo ECG (DEMO), pantalla VITAL | sí |
 | 8 | Gamificación | **cumple** | Anillo de preparación, racha, semana, 5 insignias | sí |
-| 9 | Figura humana con zonas clicables | **cumple** | 11 zonas con función y estado | sí |
+| 9 | Figura humana con zonas clicables | **cumple** | Figura 3D (y 2D alternativa) con 11 zonas, función y estado | sí |
 | 10 | Distintos entornos | **cumple** | Selector (nave, estación, rover, base lunar, base marciana): cambia retraso, gravedad, peligros destacados y mensajes | sí |
 | 11 | Los 5 peligros del HRP | **cumple** | Rueda en Riesgos NASA, ligada a indicadores | sí |
 | 12 | Recursos NASA/CSA visibles | **parcial** | "Fuentes y ciencia": los 8 enlaces; 4 leídos y citados, 4 marcados "referencia a confirmar" sin citar contenido | sí |
@@ -61,7 +61,8 @@ Ningún requisito queda en "falta". El 12 queda parcial a propósito: no se cita
   de prueba que imita el contrato (`~/.cache/dinopad-pw/mock.mjs`, fuera del repo): píldora EN VIVO, rótulos
   REAL, insignia EN VIVO del DINO PAD, historial remoto, banner SOS y su reconocimiento, y modo tormenta por
   una alerta de radiación. Falta repetirlo con el backend y el hardware de verdad.
-- Vista 3D con WebGL (la prueba no tiene WebGL), lectura en voz alta y sonidos (sin audio).
+- Lectura en voz alta y sonidos (sin audio en la prueba). La figura 3D sí se probó con WebGL por software;
+  falta verla en el equipo del escenario.
 - Fidelidad de la fuente del gemelo contra el dispositivo; toque con dos dedos en celular real.
 - 60 fps: no se midió; las animaciones son CSS/SVG/canvas ligeros y se pausan con movimiento reducido.
 - Contraste AA: revisado por diseño (texto #d8e6d9 y #84958a sobre #080d0a), sin auditoría automática.
