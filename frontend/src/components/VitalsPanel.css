@@ -52,7 +52,7 @@
 .vitals-main-layout {
   display: grid;
   min-width: 0;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
 .vitals-organ-column {
@@ -104,9 +104,6 @@
   font-size: var(--monitor-font-base);
   text-align: center;
 }
-.vitals-organ-column .body-viewer { min-width: 0; grid-template-columns: minmax(0, 1fr) 150px; }
-.vitals-organ-column .viewer-canvas { min-width: 0; height: 360px; }
-.vitals-organ-column .viewer-canvas canvas { width: 100%; height: 100%; }
 .vitals-organ-column .viewer-model-switch button,
 .vitals-organ-column .viewer-hint,
 .vitals-organ-column .viewer-point,
@@ -365,11 +362,6 @@
 .vitals-slider input { width: 100%; min-width: 0; accent-color: var(--accent); }
 .vitals-disclaimer { margin: 0; color: var(--muted); font-size: var(--monitor-font-label); text-align: right; }
 
-@media (max-width: 900px) {
-  .vitals-main-layout { grid-template-columns: minmax(0, 1fr); }
-}
 @media (max-width: 720px) {
-  .vitals-organ-column .body-viewer { grid-template-columns: minmax(0, 1fr); }
-  .vitals-organ-column .viewer-canvas { height: 320px; }
-  .vitals-organ-column .viewer-legend { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .vitals-organ-column .viewer-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

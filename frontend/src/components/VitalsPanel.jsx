@@ -116,6 +116,7 @@ export default function VitalsPanel({
   latest,
   history,
   onSelect,
+  selectionRequest,
 }) {
   const [simulation, setSimulation] = useState(createInitialSimulation);
   const [scenario, setScenario] = useState('reposo');
@@ -160,6 +161,10 @@ export default function VitalsPanel({
     }));
   };
 
+  const handleSelectIndicator = (id) => {
+    onSelect(id);
+  };
+
   const mainValue = indicatorId === 'bp'
     ? `${formatValue(values.bp)}/${formatValue(values.bpDia)}`
     : formatValue(values[config.mainKey], ['temp', 'sleep', 'mood'].includes(config.mainKey) ? 1 : 0);
@@ -169,6 +174,11 @@ export default function VitalsPanel({
       ? `${formatValue(values.resp)} resp/min`
       : '';
   const rangeValue = indicatorId === 'bp' ? values.bp : values[config.mainKey];
+  const modelRange = indicatorId === 'bp'
+    ? { ...config.range, label: `${config.range.label} · Diastólica normal <80 mmHg` }
+    : config.range;
+  const signalAvailable = latest?.[indicatorId]?.quality !== 'no_signal'
+    && latest?.[indicatorId]?.value != null;
   const selectedScenario = SIMULATOR_SCENARIOS[scenario];
   const glossary = getGlossaryEntry(indicatorId);
 
@@ -186,7 +196,7 @@ export default function VitalsPanel({
         <div className="vitals-organ-column">
           <div className="vitals-organ-heading">
             <span className="eyebrow">MODELO ANATÓMICO</span>
-            <strong>Cuerpo completo · {config.organLabel}</strong>
+            <strong>Modelo 3D · {config.organLabel}</strong>
           </div>
           <Suspense fallback={<div className="viewer-fallback">Cargando cuerpo 3D…</div>}>
             <BodyViewer3D
@@ -194,7 +204,14 @@ export default function VitalsPanel({
               indicators={indicators}
               latest={latest}
               selected={selected}
-              onSelect={onSelect}
+              selectionRequest={selectionRequest}
+              onSelect={handleSelectIndicator}
+              value={rangeValue}
+              displayValue={mainValue}
+              unit={config.unit}
+              range={modelRange}
+              status={assessment.status}
+              signal={signalAvailable}
             />
           </Suspense>
         </div>

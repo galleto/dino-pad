@@ -12,7 +12,7 @@ export default function VitalCard({ indicator, crew, reading, onSelect, selected
         type="button"
         onClick={onSelect}
         aria-pressed={selected}
-        aria-label={`${indicator.name}: ${value} ${indicator.unit}; ${STATUS_LABEL[status]}${selected ? ', seleccionado; activar para cerrar' : ', activar para seleccionar'}`}
+        aria-label={`${indicator.name}: ${value} ${indicator.unit}; ${STATUS_LABEL[status]}${selected ? ', seleccionado' : ', activar para ver el detalle'}`}
       >
         <span className="vc-top">
           <span className="vc-name">{indicator.name}</span>

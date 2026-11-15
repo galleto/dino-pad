@@ -13,14 +13,16 @@ export default function VitalMetrics({ data, onSelectIndicator }) {
   const astronaut = crew[activeCrewId];
   const current = latest[activeCrewId] || {};
   const [selected, setSelected] = useState('hr');
+  const [selectionRequest, setSelectionRequest] = useState(0);
   const showFullBodyViewer = false;
   const hasReading = Object.values(current).some((reading) => reading?.quality !== 'no_signal' && reading?.value != null);
   const status = hasReading ? getOverallStatus(astronaut, current) : 'warn';
   const localAlerts = alerts.filter((alert) => alert.crewId === activeCrewId);
   const orderedIndicators = Object.values(indicators);
   const handleSelectIndicator = (indicatorId) => {
-    const nextSelected = selected === indicatorId ? '' : indicatorId;
+    const nextSelected = indicatorId;
     setSelected(nextSelected);
+    setSelectionRequest((previous) => previous + 1);
     onSelectIndicator?.(nextSelected);
   };
   return (
@@ -54,6 +56,7 @@ export default function VitalMetrics({ data, onSelectIndicator }) {
               latest={current}
               history={history[activeCrewId] || {}}
               onSelect={handleSelectIndicator}
+              selectionRequest={selectionRequest}
             />
           </section>
         </div>

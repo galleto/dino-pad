@@ -12,7 +12,7 @@ export const VITAL_THRESHOLDS = {
   temp: { normal: [36.1, 37.2], feverAt: 38, hypothermiaBelow: 35 },
   glu: { normal: [70, 99], hypoglycemiaBelow: 70, hyperglycemiaAt: 126 },
   sleep: { normal: [7, 9], insufficientBelow: 6 },
-  mood: { min: 1, max: 5, lowAt: 2, normalMinimum: 3 },
+  mood: { min: 1, max: 10, normalMinimum: 6 },
 };
 
 export const VITALS_CONFIG = {
@@ -79,9 +79,9 @@ export const VITALS_CONFIG = {
     organ: ['brain'],
     organLabel: 'Cerebro',
     mainKey: 'mood',
-    unit: '/5',
+    unit: '/10',
     slider: { key: 'mood', min: VITAL_THRESHOLDS.mood.min, max: VITAL_THRESHOLDS.mood.max, step: 0.1, label: 'Escala de ánimo' },
-    range: { min: VITAL_THRESHOLDS.mood.min, max: VITAL_THRESHOLDS.mood.max, normal: [VITAL_THRESHOLDS.mood.normalMinimum, VITAL_THRESHOLDS.mood.max], label: 'Escala: 1–5' },
+    range: { min: VITAL_THRESHOLDS.mood.min, max: VITAL_THRESHOLDS.mood.max, normal: [VITAL_THRESHOLDS.mood.normalMinimum, VITAL_THRESHOLDS.mood.max], label: 'Escala: 1–10' },
   },
 };
 
@@ -94,7 +94,7 @@ export const SIMULATOR_LIMITS = {
   temp: [32, 42],
   glu: [40, 250],
   sleep: [0, 12],
-  mood: [1, 5],
+  mood: [1, 10],
 };
 
 export const SIMULATOR_NOISE = {
@@ -112,15 +112,15 @@ export const SIMULATOR_NOISE = {
 export const SIMULATOR_SCENARIOS = {
   reposo: {
     name: 'Reposo',
-    values: { hr: 72, bp: 116, bpDia: 74, spo2: 98, resp: 16, temp: 36.7, glu: 92, sleep: 7.8, mood: 4 },
+    values: { hr: 72, bp: 116, bpDia: 74, spo2: 98, resp: 16, temp: 36.7, glu: 92, sleep: 7.8, mood: 8 },
   },
   ejercicio: {
     name: 'Ejercicio',
-    values: { hr: 124, bp: 142, bpDia: 86, spo2: 94, resp: 24, temp: 37.7, glu: 108, sleep: 6.2, mood: 3.2 },
+    values: { hr: 124, bp: 142, bpDia: 86, spo2: 94, resp: 24, temp: 37.7, glu: 108, sleep: 6.2, mood: 6.4 },
   },
   emergencia: {
     name: 'Emergencia',
-    values: { hr: 162, bp: 174, bpDia: 106, spo2: 88, resp: 28, temp: 38.2, glu: 66, sleep: 4.5, mood: 1.5 },
+    values: { hr: 162, bp: 174, bpDia: 106, spo2: 88, resp: 28, temp: 38.2, glu: 66, sleep: 4.5, mood: 3 },
   },
 };
 
@@ -244,7 +244,7 @@ export function getVitalAssessment(id, values) {
   }
 
   if (id === 'mood') {
-    if (values.mood <= VITAL_THRESHOLDS.mood.lowAt) {
+    if (values.mood < VITAL_THRESHOLDS.mood.normalMinimum) {
       return { status: 'warn', term: 'ÁNIMO BAJO', meaning: 'Autoevaluación baja; no es un diagnóstico.', recommendation: 'Considera hablar con alguien de tu equipo.' };
     }
     return normal('ánimo');
