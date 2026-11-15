@@ -5,7 +5,9 @@
 //   ROJO corto       entrar a la pestana (seleccionar)
 //   ROJO largo       volver (salir de la pestana / cerrar SOS)
 //   Dentro de MENS: NEGRO/BLANCO eligen un mensaje predeterminado y ROJO corto lo
-//   envia por el T1000-E (broadcast, canal primario) si ENVIAR_MENSAJE = true.
+//   manda a la base (web, por Wi-Fi) y por el T1000-E (LoRa, broadcast, canal primario)
+//   si ENVIAR_MENSAJE = true. Los mensajes de la base salen en pantalla completa;
+//   cualquier boton los cierra (y la base ve "leido").
 //   NEGRO + BLANCO   SOS, sostenidos 3 s: pantalla SOS y, con red, alerta SOS a la base
 //                    (dinopad/alertas). El SOS del guion de demo.h NUNCA se envia.
 //
@@ -38,7 +40,7 @@
 // true: MENS envia de verdad por el T1000-E (broadcast en el canal primario, PUBLICO),
 // solo al presionar ROJO, con ENVIO_PAUSA_MS entre envios. El guion de DEMO_AUTOMATICO
 // nunca envia por radio: simula el envio en pantalla con rotulo DEMO (decidirEnvio()).
-static const bool ENVIAR_MENSAJE = false;
+static const bool ENVIAR_MENSAJE = true;   // LoRa: canal primario PUBLICO (broadcast)
 static const uint32_t ENVIO_PAUSA_MS = 30000;
 
 // true: recorre el menu solo (demo.h), para placas sin botones.
@@ -61,6 +63,11 @@ static EstadoEnvio envioMostrado = EstadoEnvio::NINGUNO;
 static SimuladorVital simulador;   // BPM/SpO2 DEMO: cambiar por el MAX30102 (simulador_vital.h)
 static DatosVitales vitales;
 static Compartido copia;   // ~1 KB: global, no en la pila de loop()
+// Mensaje de la base en pantalla (encima de todo hasta que se pulse un boton)
+static bool msgBaseVisible = false;
+static char msgBaseId[16] = "";
+static uint32_t msgBaseDesde = 0;
+static const uint32_t MSG_BASE_MAX_MS = 120000;   // se cierra solo a los 2 min (sin "leido")
 
 static const char* nombreModo(Modo m) {
   return m == Modo::MENU ? "MENU" : m == Modo::DENTRO ? "DENTRO" : "SOS";
@@ -122,13 +129,18 @@ static void manejarEvento(Evento e, bool desdeDemo) {
     if (modo != Modo::SOS) modoAntesSos = modo;
     modo = Modo::SOS;
     barraSosVisible = false;
+    const char* linea;
     if (desdeDemo) {
+      linea = "DEMO: no se envia";
       Serial.println("    SOS del guion DEMO (solo pantalla, no se envia)");
     } else {
       redEnviarSos();
+      linea = redEstado() == EstadoRed::CONECTADA ? "Alerta enviada a la base"
+            : redEstado() == EstadoRed::APAGADA   ? "SIN RED: no se envio"
+                                                   : "Sin red: se enviara";
       Serial.printf("    SOS activado: alerta a la base (red %s)\n", nombreEstadoRed(redEstado()));
     }
-    ui::pantallaSos();
+    ui::pantallaSos(linea);
     return;
   }
 
@@ -166,6 +178,7 @@ static void manejarEvento(Evento e, bool desdeDemo) {
         char t[64];
         const char* r = pedirEnvio(desdeDemo, t, sizeof t);
         Serial.printf("    MENS: %s\n", r);
+        if (!desdeDemo) redEnviarMensaje(ui::mensajeSeleccionado(), r);   // a la web (la radio la decide pedirEnvio)
         ui::pie(r);
         return;
       } else {
@@ -179,6 +192,14 @@ static void manejarEvento(Evento e, bool desdeDemo) {
   ui::cambioDePestana(pestana, modo);
   ui::pie(nombre);
   ultimoRefresco = 0;   // rellenar la pestana nueva ya
+}
+
+// Cierra el mensaje de la base; con 'leido' la base sabe que alguien lo cerro con un boton.
+static void cerrarMensajeBase(bool leido) {
+  msgBaseVisible = false;
+  if (leido) redEnviarAcuse(msgBaseId, "leido");
+  ui::dibujarTodo(pestana, modo, leido ? "mensaje leido" : "mensaje cerrado");
+  ultimoRefresco = 0;
 }
 
 void setup() {
@@ -210,8 +231,27 @@ void loop() {
   uint32_t ahora = millis();
   botones.actualizar(!digitalRead(PIN_BTN_NEGRO), !digitalRead(PIN_BTN_BLANCO),
                      !digitalRead(PIN_BTN_ROJO), ahora);
-  for (Evento e; (e = botones.siguienteEvento()) != Evento::NINGUNO;) manejar(e);
-  if (DEMO_AUTOMATICO) {
+  for (Evento e; (e = botones.siguienteEvento()) != Evento::NINGUNO;) {
+    if (msgBaseVisible) {   // el primer boton cierra el mensaje de la base (el SOS sigue funcionando)
+      cerrarMensajeBase(true);
+      if (e != Evento::SOS) continue;
+    }
+    manejar(e);
+  }
+
+  // Mensaje nuevo de la base: pantalla completa (no encima del SOS)
+  MensajeBase mb;
+  if (!msgBaseVisible && modo != Modo::SOS && redSiguienteMensajeBase(mb)) {
+    msgBaseVisible = true;
+    msgBaseDesde = ahora;
+    snprintf(msgBaseId, sizeof msgBaseId, "%s", mb.id);
+    ui::pantallaMensajeBase(mb.de, mb.texto);
+    redEnviarAcuse(mb.id, "mostrado");
+    Serial.printf("[MENSAJE BASE] %s: %s\n", mb.de, mb.texto);
+  }
+  if (msgBaseVisible && ahora - msgBaseDesde >= MSG_BASE_MAX_MS) cerrarMensajeBase(false);
+
+  if (DEMO_AUTOMATICO && !msgBaseVisible) {
     Evento e = demo.siguiente(ahora);
     if (e != Evento::NINGUNO) { Serial.print("[DEMO] "); manejar(e, true); }
   }
@@ -240,7 +280,7 @@ void loop() {
 
   // Cambios de la red: al serial (lo hace red_mqtt) y al pie de la pantalla
   static EstadoRed redMostrada = EstadoRed::APAGADA;
-  if (redEstado() != redMostrada && modo != Modo::SOS) {
+  if (redEstado() != redMostrada && modo != Modo::SOS && !msgBaseVisible) {
     redMostrada = redEstado();
     char t[48];
     snprintf(t, sizeof t, "RED: %s", nombreEstadoRed(redMostrada));
@@ -248,7 +288,7 @@ void loop() {
   }
 
   // Datos del tracker: copia del estado compartido y redibujo de lo que cambio
-  if (ahora - ultimoRefresco >= REFRESCO_MS) {
+  if (!msgBaseVisible && ahora - ultimoRefresco >= REFRESCO_MS) {
     ultimoRefresco = ahora;
     compartidoCopiar(copia);
     ui::actualizar(pestana, modo, copia, vitales, ahora);
@@ -256,6 +296,7 @@ void loop() {
     if (copia.envio != envioMostrado && modo != Modo::SOS) {
       envioMostrado = copia.envio;
       if (copia.envio != EstadoEnvio::NINGUNO && copia.envio != EstadoEnvio::PEDIDO) {
+        redEnviarLora(nombreEstadoEnvio(copia.envio));   // la base ve si salio por radio (ACK/NAK...)
         char t[64];
         snprintf(t, sizeof t, "%s: %s", nombreEstadoEnvio(copia.envio), copia.envioTexto);
         ui::pie(t);

@@ -771,12 +771,46 @@ void borrarBarraSos() {
   tft.fillRect(0, Y_SOS_BARRA, TFT_ANCHO, 12, COL_FONDO);
 }
 
-void pantallaSos() {
+void pantallaSos(const char* linea) {
   tft.fillScreen(COL_ROJO);
   invalidarCampos();
   textoCentrado("SOS", 50, 8, COL_BLANCO, COL_ROJO);   // 8 = 48x64 px por caracter
-  textoCentrado("PRUEBA: no se envia nada", 140, 2, COL_BLANCO, COL_ROJO);
+  char t[27];
+  snprintf(t, sizeof t, "%s", linea ? linea : "");      // 26 caracteres de tamano 2
+  textoCentrado(t, 140, 2, COL_BLANCO, COL_ROJO);
   textoCentrado("ROJO: cerrar", 180, 2, COL_BLANCO, COL_ROJO);
+}
+
+// ---------- Mensaje de la base ----------
+void pantallaMensajeBase(const char* de, const char* texto) {
+  tft.fillScreen(COL_FONDO);
+  invalidarCampos();
+  tft.drawRect(2, 2, TFT_ANCHO - 4, 236, COL_AMARILLO);
+  tft.drawRect(3, 3, TFT_ANCHO - 6, 234, COL_AMARILLO);
+  textoCentrado("MENSAJE DE LA BASE", 14, 2, COL_AMARILLO, COL_FONDO);
+  char t[40];
+  snprintf(t, sizeof t, "de: %.24s", de && *de ? de : "Base");
+  textoCentrado(t, 40, 1, COL_GRIS, COL_FONDO);
+  // Texto en hasta 4 lineas de 25 caracteres (tamano 2), cortando en espacios
+  const int ANCHO = 25;
+  const char* p = texto ? texto : "";
+  int y = 70;
+  for (int linea = 0; linea < 4 && *p; linea++) {
+    while (*p == ' ') p++;
+    int n = (int)strlen(p);
+    if (n > ANCHO) {
+      n = ANCHO;
+      while (n > 0 && p[n] != ' ') n--;
+      if (n == 0) n = ANCHO;   // palabra mas larga que la linea
+    }
+    char l[ANCHO + 1];
+    memcpy(l, p, n);
+    l[n] = 0;
+    textoCentrado(l, y, 2, COL_BLANCO, COL_FONDO);
+    p += n;
+    y += 26;
+  }
+  textoCentrado("Cualquier boton: cerrar", 210, 1, COL_VERDE, COL_FONDO);
 }
 
 }  // namespace ui

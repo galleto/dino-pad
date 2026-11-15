@@ -51,10 +51,15 @@ void redIniciar() { Serial.println("RED: sin secretos.h -> apagada (ver secretos
 void redEnviarVital(const MuestraVital&) {}
 void redEnviarUi(int, Modo, const char*, bool) {}
 void redEnviarSos() {}
+void redEnviarMensaje(const char*, const char*) {}
+void redEnviarLora(const char*) {}
+void redEnviarAcuse(const char*, const char*) {}
+bool redSiguienteMensajeBase(MensajeBase&) { return false; }
 #else
 
-enum Tema : uint8_t { T_VITALS, T_ALERTAS, T_ESTADO, T_UI };
-static const char* const TEMAS[] = {"dinopad/vitals", "dinopad/alertas", "dinopad/estado", "dinopad/ui"};
+enum Tema : uint8_t { T_VITALS, T_ALERTAS, T_ESTADO, T_UI, T_MENSAJES, T_ACUSE, T_LORA };
+static const char* const TEMAS[] = {"dinopad/vitals", "dinopad/alertas", "dinopad/estado", "dinopad/ui",
+                                    "dinopad/mensajes", "dinopad/acuse", "dinopad/lora"};
 
 struct Mensaje {
   uint8_t tema;
@@ -67,6 +72,7 @@ static const uint32_t REINTENTO_BROKER_MS = 5000;
 static const uint32_t REINTENTO_WIFI_MS = 20000;
 
 static QueueHandle_t cola_ = nullptr;
+static QueueHandle_t colaBase_ = nullptr;   // mensajes de la base para la pantalla (los lee loop)
 static volatile bool sosPendiente_ = false;
 static volatile uint64_t sosTs_ = 0;
 static char deviceId_[24] = "dinopad";
@@ -159,6 +165,85 @@ void redEnviarSos() {
   sosPendiente_ = true;   // la tarea lo publica en cuanto haya broker; no compite con la cola
 }
 
+// Copia texto sin comillas ni barras (el JSON se arma a mano)
+static void limpio(char* dst, size_t n, const char* src) {
+  size_t k = 0;
+  for (; src && *src && k + 1 < n; src++)
+    if (*src != '"' && *src != '\\' && (uint8_t)*src >= 32) dst[k++] = *src;
+  dst[k] = 0;
+}
+
+void redEnviarMensaje(const char* texto, const char* lora) {
+  char t[64], l[48], j[240];
+  limpio(t, sizeof t, texto);
+  limpio(l, sizeof l, lora);
+  snprintf(j, sizeof j, "{\"crewId\":\"%s\",\"deviceId\":\"%s\",\"text\":\"%s\",\"lora\":\"%s\",\"timestamp\":%llu}",
+           CREW_ID, deviceId_, t, l, (unsigned long long)epochMs());
+  encolar(T_MENSAJES, j);
+}
+
+void redEnviarLora(const char* estado) {
+  char e[40], j[200];
+  limpio(e, sizeof e, estado);
+  snprintf(j, sizeof j, "{\"crewId\":\"%s\",\"deviceId\":\"%s\",\"estado\":\"%s\",\"timestamp\":%llu}", CREW_ID,
+           deviceId_, e, (unsigned long long)epochMs());
+  encolar(T_LORA, j);
+}
+
+void redEnviarAcuse(const char* id, const char* estado) {
+  char i[16], j[200];
+  limpio(i, sizeof i, id);
+  snprintf(j, sizeof j, "{\"crewId\":\"%s\",\"id\":\"%s\",\"estado\":\"%s\",\"timestamp\":%llu}", CREW_ID, i,
+           estado, (unsigned long long)epochMs());
+  encolar(T_ACUSE, j);
+}
+
+bool redSiguienteMensajeBase(MensajeBase& out) {
+  return colaBase_ && xQueueReceive(colaBase_, &out, 0) == pdTRUE;
+}
+
+#if MODO_HTTPS
+// Copia el valor de "clave":"..." que sigue a 'desde' (hasta 'fin'). El backend manda ASCII
+// sin comillas ni barras en los textos (backend/mensajes.py texto_pantalla).
+static bool valorJson(const char* desde, const char* fin, const char* clave, char* dst, size_t n) {
+  char patron[16];
+  snprintf(patron, sizeof patron, "\"%s\":\"", clave);
+  const char* p = strstr(desde, patron);
+  if (!p || (fin && p > fin)) return false;
+  p += strlen(patron);
+  size_t k = 0;
+  while (*p && *p != '"' && k + 1 < n) dst[k++] = *p++;
+  dst[k] = 0;
+  return true;
+}
+
+// Lee "bajada":[{"id":..,"texto":..,"de":..},...] de la respuesta de la ingesta.
+static char vistos_[6][16];   // ultimos ids recibidos (el servidor reenvia si no llega el acuse)
+static int nVisto_ = 0;
+static void leerBajada(const char* cuerpo) {
+  const char* p = strstr(cuerpo, "\"bajada\":[");
+  if (!p) return;
+  while ((p = strchr(p, '{')) != nullptr) {
+    const char* fin = strchr(p, '}');
+    if (!fin) break;
+    MensajeBase m{};
+    if (valorJson(p, fin, "id", m.id, sizeof m.id) && valorJson(p, fin, "texto", m.texto, sizeof m.texto)) {
+      if (!valorJson(p, fin, "de", m.de, sizeof m.de)) snprintf(m.de, sizeof m.de, "Base");
+      bool repetido = false;
+      for (int k = 0; k < 6; k++) repetido |= strcmp(vistos_[k], m.id) == 0;
+      if (repetido) {
+        redEnviarAcuse(m.id, "mostrado");   // ya lo tenemos: que el servidor deje de reenviarlo
+      } else {
+        snprintf(vistos_[nVisto_++ % 6], 16, "%s", m.id);
+        xQueueSend(colaBase_, &m, 0);
+        Serial.printf("RED: mensaje de la base (%s): %s\n", m.de, m.texto);
+      }
+    }
+    p = fin + 1;
+  }
+}
+#endif
+
 // Telemetria REAL del T1000-E (lo que la tarea BLE decodifico). Sin bateria todavia no se manda:
 // el contrato (DeviceStatus) la exige.
 static bool armarEstado(char* j, size_t n) {
@@ -227,7 +312,10 @@ static int enviarLote(bool& incluyoSos, bool conEstado) {
   http_.addHeader("Content-Type", "application/json");
   http_.addHeader("X-Device-Token", DEVICE_TOKEN);
   int codigo = http_.POST((uint8_t*)lote_, strlen(lote_));
-  if (codigo != 200) {
+  if (codigo == 200) {
+    String r = http_.getString();
+    leerBajada(r.c_str());
+  } else {
     Serial.printf("RED: POST -> %d %s\n", codigo, codigo > 0 ? http_.getString().substring(0, 120).c_str() : http_.errorToString(codigo).c_str());
     http_.end();   // conexión nueva en el próximo intento
   }
@@ -343,6 +431,7 @@ void redIniciar() {
   uint64_t mac = ESP.getEfuseMac();   // MAC de fabrica (no depende de que el Wi-Fi ya arranco)
   snprintf(deviceId_, sizeof deviceId_, "dinopad-%02x%02x", (unsigned)((mac >> 32) & 0xff), (unsigned)((mac >> 40) & 0xff));
   cola_ = xQueueCreate(12, sizeof(Mensaje));
+  colaBase_ = xQueueCreate(4, sizeof(MensajeBase));
 #if MODO_HTTPS
   Serial.printf("RED: %s -> HTTPS %s como %s (%s)\n", WIFI_SSID, BASE_URL, deviceId_, CREW_ID);
 #else

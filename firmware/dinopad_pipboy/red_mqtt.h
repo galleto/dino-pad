@@ -36,3 +36,13 @@ const char* redDetalle();                // ultimo motivo (para el serial y el p
 void redEnviarVital(const MuestraVital& m);
 void redEnviarUi(int pestana, Modo modo, const char* evento, bool desdeDemo);
 void redEnviarSos();                     // solo SOS de una persona (no de demo.h)
+// Mensajes (pestana MENS -> base; base -> pantalla). Solo en modo HTTPS.
+void redEnviarMensaje(const char* texto, const char* lora);   // lora: lo que paso con el envio por radio
+void redEnviarLora(const char* estado);                       // ACK, NAK, SIN_RESPUESTA... del ultimo
+void redEnviarAcuse(const char* id, const char* estado);      // "mostrado" | "leido"
+struct MensajeBase {
+  char id[16];
+  char de[25];
+  char texto[64];
+};
+bool redSiguienteMensajeBase(MensajeBase& out);               // false si no hay ninguno nuevo

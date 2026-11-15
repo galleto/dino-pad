@@ -35,6 +35,9 @@ const char* mensajeSeleccionado();
 
 void barraSos(float progreso);   // 0..1
 void borrarBarraSos();
-void pantallaSos();
+// linea: lo que pasa con la alerta ("Alerta enviada a la base", "DEMO: no se envia", ...)
+void pantallaSos(const char* linea);
+// Mensaje de la base (web): pantalla completa hasta que se pulse un boton.
+void pantallaMensajeBase(const char* de, const char* texto);
 
 }  // namespace ui
