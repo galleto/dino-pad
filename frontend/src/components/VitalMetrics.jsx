@@ -5,6 +5,7 @@ import VitalCard from './VitalCard';
 import HealthAlerts from './HealthAlerts';
 import CrewSelector from './CrewSelector';
 import Term from './Term';
+import VitalsPanel from './VitalsPanel';
 
 const BodyViewer3D = lazy(() => import('./BodyViewer3D'));
 
@@ -13,6 +14,7 @@ export default function VitalMetrics({ data, onSelectIndicator }) {
   const astronaut = crew[activeCrewId];
   const current = latest[activeCrewId] || {};
   const [selected, setSelected] = useState('');
+  const showFullBodyViewer = false;
   const hasReading = Object.values(current).some((reading) => reading?.quality !== 'no_signal' && reading?.value != null);
   const status = hasReading ? getOverallStatus(astronaut, current) : 'warn';
   const localAlerts = alerts.filter((alert) => alert.crewId === activeCrewId);
@@ -32,7 +34,8 @@ export default function VitalMetrics({ data, onSelectIndicator }) {
           </div>
           <section className="panel body-panel">
             <div className="panel-heading"><div><span className="eyebrow">MAPA BIOMÉTRICO</span><h2>Telemetría corporal</h2></div><span className="tag">SELECCIONA UN PUNTO</span></div>
-            <Suspense fallback={<div className="viewer-fallback">Preparando visor holográfico…</div>}><BodyViewer3D crew={astronaut} indicators={indicators} latest={current} selected={selected} onSelect={setSelected} /></Suspense>
+            {showFullBodyViewer && <Suspense fallback={<div className="viewer-fallback">Preparando visor holográfico…</div>}><BodyViewer3D crew={astronaut} indicators={indicators} latest={current} selected={selected} onSelect={setSelected} /></Suspense>}
+            <VitalsPanel selected={selected || 'hr'} latest={current} history={history[activeCrewId] || {}} />
           </section>
         </div>
         <aside className="monitor-aside">
