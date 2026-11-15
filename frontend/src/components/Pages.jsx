@@ -8,6 +8,7 @@ import { etiquetaOrigen } from './origenes';
 import { LeyendaOrigen } from './Origen';
 import { api } from '../services/api';
 import HealthAlerts from './HealthAlerts';
+import { FuentesCiencia, RuedaPeligros } from './Peligros';
 import { tormentaStore } from './estadoMision';
 import VitalMetrics from './VitalMetrics';
 
@@ -235,9 +236,11 @@ const NASA_RISKS = [
 ];
 
 export function RisksPage() {
-  const { indicators } = usePageData();
+  const { indicators, crew, latest, activeCrewId } = usePageData();
   return (
-    <div className="page-grid">
+    <div className="page-grid riesgos">
+      <RuedaPeligros indicators={indicators} crew={crew[activeCrewId]} latest={latest[activeCrewId]} />
+      <FuentesCiencia />
       <div className="validation-banner"><strong>CONTENIDO A VALIDAR CON FUENTES OFICIALES</strong><span>Resumen educativo; no sustituye protocolos médicos ni evaluación de la misión.</span></div>
       <div className="section-heading"><div><span className="eyebrow">FACTORES DE VUELO ESPACIAL</span><h2>Riesgos NASA</h2><p>Relación conceptual entre riesgos de misión e indicadores del prototipo.</p></div></div>
       <section className="panel risk-table-wrap"><table className="risk-table"><thead><tr><th>Riesgo</th><th>Qué se monitorea</th><th>Cobertura Dinopad</th></tr></thead><tbody>{NASA_RISKS.map(([risk, measure, ids]) => <tr key={risk}><th scope="row">{risk}</th><td>{measure}</td><td>{ids.map((id) => <span className="tag risk-tag" key={id}>{indicators[id]?.name || id} · {id}</span>)}</td></tr>)}</tbody></table></section>

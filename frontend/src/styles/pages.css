@@ -346,3 +346,45 @@
 .alert-controls, .history-panel, .relation-panel, .trend-card, .crew-profile, .emergency-panel, .risk-info, .risk-sources { padding: 18px; }
 .trend-value, .relation-list strong { color: var(--green); text-shadow: var(--glow-soft); }
 .cache-banner { margin-bottom: 16px; }
+
+/* ============================================================
+   06 Riesgos · rueda de los 5 peligros del HRP y fuentes
+   ============================================================ */
+.riesgos { gap: 30px; }
+.rueda-seccion { display: grid; grid-template-columns: minmax(300px, 500px) minmax(0, 1fr); align-items: center; gap: 56px; }
+.rueda { display: block; width: 100%; font-family: var(--mono); }
+.rueda-aro { fill: none; stroke: var(--line-bright); }
+.rueda-marca { stroke: var(--line-bright); stroke-width: 1; }
+.rueda-sector { cursor: pointer; outline: none; }
+.rueda-cuerpo { fill: rgba(164, 255, 112, 0.05); stroke: var(--green-dim); stroke-width: 1; transition: fill .2s ease; }
+.rueda-sector:hover .rueda-cuerpo, .rueda-sector:focus-visible .rueda-cuerpo { fill: rgba(164, 255, 112, 0.16); }
+.rueda-sector:focus-visible .rueda-cuerpo { stroke: var(--text); stroke-width: 2; }
+.rueda-destaque { fill: var(--green); }
+.rueda-nombre { fill: var(--text); font-size: 15px; font-weight: 600; }
+.rueda-cuenta { fill: var(--muted); font-size: 10px; }
+.rueda-sector.is-selected .rueda-cuerpo { fill: var(--green); stroke: var(--green); filter: drop-shadow(0 0 12px rgba(164, 255, 112, 0.5)); }
+.rueda-sector.is-selected .rueda-nombre { fill: #081009; }
+.rueda-sector.is-selected .rueda-cuenta { fill: #2c4a1f; }
+.rueda-centro-n { fill: var(--green); font-size: 44px; font-weight: 500; }
+.rueda-centro { fill: var(--muted); font-size: 11px; }
+.rueda-detalle { display: grid; gap: 10px; max-width: 760px; }
+.rueda-detalle h2 { color: var(--green); font-size: 34px; font-weight: 600; line-height: 1.1; letter-spacing: -.01em; text-shadow: var(--glow-soft); }
+.rueda-detalle h3 { margin-top: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line-bright); font-size: var(--t-md); font-weight: 600; }
+.rueda-detalle > p { max-width: 70ch; line-height: 1.6; }
+.rueda-nasa a, .fuentes a { color: var(--blue); }
+.rueda-entorno, .rueda-nota { color: var(--muted); font-size: var(--t-sm); }
+.rueda-indicadores { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.rueda-indicadores li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 14px; padding: 9px 0 9px 12px; border-bottom: 1px solid var(--line); border-left: 2px solid var(--st); }
+.rueda-indicadores a { color: var(--text); }
+.rueda-indicadores span { color: var(--st); font-size: var(--t-sm); white-space: nowrap; }
+.rueda-indicadores p { grid-column: 1 / -1; color: var(--muted); font-size: var(--t-sm); }
+.fuentes { display: grid; gap: 12px; }
+.fuentes-aviso { max-width: 110ch; color: var(--muted); line-height: 1.6; }
+.fuentes-lista { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 40px; margin: 0; padding: 0; list-style: none; }
+.fuentes-lista li { display: grid; grid-template-columns: 178px minmax(0, 1fr); gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.fuentes-lista p { margin-top: 3px; color: var(--muted); font-size: var(--t-sm); line-height: 1.5; }
+.fuentes-lista .fuentes-liga { color: var(--text); }
+@media (max-width: 1100px) { .rueda-seccion { grid-template-columns: minmax(0, 1fr); gap: 20px; justify-items: center; } .rueda { max-width: 420px; } .fuentes-lista { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 720px) { .fuentes-lista li { grid-template-columns: minmax(0, 1fr); gap: 6px; } .rueda-detalle h2 { font-size: 26px; } }
+.rueda-sector:focus-visible, .fig-zona:focus-visible { outline: none; }
+.rueda-nombre { font-size: 14px; }
