@@ -6,7 +6,8 @@
 //   ROJO largo       volver (salir de la pestana / cerrar SOS)
 //   Dentro de MENS: NEGRO/BLANCO eligen un mensaje predeterminado y ROJO corto lo
 //   envia por el T1000-E (broadcast, canal primario) si ENVIAR_MENSAJE = true.
-//   NEGRO + BLANCO   SOS, sostenidos 3 s (solo pantalla: NO envia nada)
+//   NEGRO + BLANCO   SOS, sostenidos 3 s: pantalla SOS y, con red, alerta SOS a la base
+//                    (dinopad/alertas). El SOS del guion de demo.h NUNCA se envia.
 //
 // Arquitectura:
 //   conexion_ble.*  tarea FreeRTOS en el nucleo 0: conecta, lee y reconecta al tracker
@@ -14,8 +15,10 @@
 //   datos_tracker.* decodificador FromRadio con Nanopb (src/mtpb, generado)
 //   ui.*            dibujo; redibuja solo los campos que cambian
 //   botones.*       logica de botones (probada en la PC: test/verificar_botones.sh)
-// El bucle de botones nunca espera al BLE. Sin Wi-Fi. No cambia la configuracion del
-// tracker. Lo unico que sale por radio son los mensajes de MENS (ver ENVIAR_MENSAJE).
+//   red_mqtt.*      Wi-Fi + MQTT (TLS) al broker en la nube, en su propia tarea; sin
+//                   secretos.h queda apagada (ver secretos.ejemplo.h)
+// El bucle de botones nunca espera al BLE ni a la red. No cambia la configuracion del
+// tracker. Por LoRa solo salen los mensajes de MENS (ver ENVIAR_MENSAJE).
 //
 // Compilar con: --libraries firmware/libraries   (pines.h)
 // Antes, una vez: firmware/ble_send/tools/generar_nanopb.sh  (genera src/mtpb)
@@ -27,6 +30,7 @@
 #include "conexion_ble.h"
 #include "demo.h"
 #include "mensajes.h"
+#include "red_mqtt.h"
 #include "simulador_vital.h"
 #include "vitales.h"
 #include "ui.h"
@@ -100,7 +104,15 @@ static const char* pedirEnvio(bool desdeDemo, char* t, size_t n) {
   return t;
 }
 
+static void manejarEvento(Evento e, bool desdeDemo);
+
+// Cada evento se maneja y, despues, el estado del menu se manda al espejo de la web.
 static void manejar(Evento e, bool desdeDemo = false) {
+  manejarEvento(e, desdeDemo);
+  redEnviarUi(pestana, modo, nombreEvento(e), desdeDemo);
+}
+
+static void manejarEvento(Evento e, bool desdeDemo) {
   const char* nombre = nombreEvento(e);
   ui::origenEventoDemo(desdeDemo);   // el pie dira "Ultimo DEMO:" si lo genero demo.h
   Serial.printf("[%lu ms] %s  (modo=%s, pestana=%s)\n", (unsigned long)millis(), nombre,
@@ -110,7 +122,12 @@ static void manejar(Evento e, bool desdeDemo = false) {
     if (modo != Modo::SOS) modoAntesSos = modo;
     modo = Modo::SOS;
     barraSosVisible = false;
-    Serial.println("    SOS activado (solo pantalla, no se envia nada)");
+    if (desdeDemo) {
+      Serial.println("    SOS del guion DEMO (solo pantalla, no se envia)");
+    } else {
+      redEnviarSos();
+      Serial.printf("    SOS activado: alerta a la base (red %s)\n", nombreEstadoRed(redEstado()));
+    }
     ui::pantallaSos();
     return;
   }
@@ -183,6 +200,7 @@ void setup() {
 
   compartidoIniciar();
   bleIniciar();   // tarea BLE en el nucleo 0
+  redIniciar();   // tarea de red en el nucleo 1 (apagada sin secretos.h)
 
   Serial.printf("DEMO_AUTOMATICO=%s\n", DEMO_AUTOMATICO ? "true (recorre el menu solo)" : "false");
   demo.empezarEn(millis() + 3000);   // 3 s en el menu antes de empezar
@@ -215,7 +233,19 @@ void loop() {
 
   // Signos vitales (simulados): una muestra cada 2 s
   MuestraVital mv;
-  if (simulador.leer(ahora, mv)) vitales.historial.agregar(mv);
+  if (simulador.leer(ahora, mv)) {
+    vitales.historial.agregar(mv);
+    redEnviarVital(mv);   // a la base como source "simulated" (la web los rotula DEMO)
+  }
+
+  // Cambios de la red: al serial (lo hace red_mqtt) y al pie de la pantalla
+  static EstadoRed redMostrada = EstadoRed::APAGADA;
+  if (redEstado() != redMostrada && modo != Modo::SOS) {
+    redMostrada = redEstado();
+    char t[48];
+    snprintf(t, sizeof t, "RED: %s", nombreEstadoRed(redMostrada));
+    ui::pie(t);
+  }
 
   // Datos del tracker: copia del estado compartido y redibujo de lo que cambio
   if (ahora - ultimoRefresco >= REFRESCO_MS) {

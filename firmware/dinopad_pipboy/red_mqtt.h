@@ -1,0 +1,36 @@
+// red_mqtt.h - Wi-Fi + MQTT (TLS) hacia el broker en la nube, en su propia tarea FreeRTOS.
+//
+// loop() NUNCA espera a la red: solo deja mensajes en una cola (redEnviar*), y la tarea
+// "red" (nucleo 1, misma prioridad que loop) conecta, reconecta y publica. Si la cola se
+// llena se descartan lecturas viejas; el SOS no se pierde (va por una bandera aparte).
+//
+// Temas (contrato de backend/mqtt_client.py y backend/models.py):
+//   dinopad/vitals   VitalReading   BPM y SpO2 del simulador del ESP32: source "simulated"
+//   dinopad/alertas  AlertMessage   {"type":"sos"} al sostener NEGRO+BLANCO (nunca desde demo.h)
+//   dinopad/estado   DeviceStatus   telemetria REAL del T1000-E (bateria, RSSI, ...), cada 30 s
+//   dinopad/ui       estado del menu (pestana, modo, ultimo evento) para el espejo de la web
+//
+// Sin secretos.h la red queda apagada y todo lo demas funciona igual.
+#pragma once
+#include <stdint.h>
+
+#include "ui.h"
+#include "vitales.h"
+
+enum class EstadoRed : uint8_t {
+  APAGADA,        // sin secretos.h
+  WIFI,           // buscando / conectando el Wi-Fi
+  HORA,           // esperando la hora por NTP (TLS la necesita para validar el certificado)
+  BROKER,         // conectando al broker (TLS + usuario)
+  CONECTADA,      // publicando
+};
+const char* nombreEstadoRed(EstadoRed e);
+
+void redIniciar();                       // en setup(), despues de bleIniciar()
+EstadoRed redEstado();
+const char* redDetalle();                // ultimo motivo (para el serial y el pie)
+
+// Llamadas desde loop(): no bloquean.
+void redEnviarVital(const MuestraVital& m);
+void redEnviarUi(int pestana, Modo modo, const char* evento, bool desdeDemo);
+void redEnviarSos();                     // solo SOS de una persona (no de demo.h)

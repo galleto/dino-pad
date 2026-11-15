@@ -8,7 +8,7 @@ ILI9341 de 2.8" y conexión BLE a un SenseCAP Card Tracker T1000-E con Meshtasti
 | `ble_send/` | Se conecta por BLE al T1000-E con PIN, lee su configuración y telemetría (Nanopb) y las muestra en la pantalla. Con `ENVIAR_MENSAJE = true` manda **un** mensaje de texto por broadcast. |
 | `ble_scan/` | Escáner BLE: lista los nodos Meshtastic cercanos (sin repetidos) y marca el T1000-E objetivo. |
 | `dinopad/` | Panel de telemetría por Wi-Fi + MQTT, con tres botones (ping, sensores simulados, SOS). |
-| `dinopad_pipboy/` | Menú de 5 pestañas con los 3 botones y datos del T1000-E por BLE (5 etapas; ver abajo). Sin Wi-Fi; solo envía por radio si `ENVIAR_MENSAJE = true`. |
+| `dinopad_pipboy/` | Menú de 5 pestañas con los 3 botones y datos del T1000-E por BLE (5 etapas; ver abajo). Con `secretos.h`, Wi-Fi + MQTT (TLS) a la base en la nube; sin él, sin red. Por LoRa solo envía si `ENVIAR_MENSAJE = true`. |
 | `test_ble_minimo/` | Solo `NimBLEDevice::init()` e imprime "BLE OK": para ver si una placa aguanta encender el BLE (brownout). |
 | `test_botones/` | Encuentra a qué GPIO está soldado cada botón (muestra "GPIO n" al presionar). |
 | `test_rotacion/`, `test_geometria/`, `test_madctl/` | Pruebas de la pantalla que se usaron para encontrar la orientación correcta. |
@@ -58,12 +58,14 @@ los sketches encuentren `pines.h`:
 ```sh
 arduino-cli compile --fqbn esp32:esp32:esp32 --libraries firmware/libraries firmware/ble_send
 arduino-cli compile --fqbn esp32:esp32:esp32 --libraries firmware/libraries firmware/dinopad
-arduino-cli compile --fqbn esp32:esp32:esp32 --libraries firmware/libraries firmware/dinopad_pipboy
+arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --libraries firmware/libraries firmware/dinopad_pipboy
 arduino-cli compile --fqbn esp32:esp32:esp32 --libraries firmware/libraries firmware/test_botones
 arduino-cli compile --fqbn esp32:esp32:esp32 firmware/ble_scan
 ```
 
 Uso aproximado de flash: `ble_send` 51 %, `ble_scan` 45 %, `dinopad` 71 %.
+`dinopad_pipboy` con red usa 1.35 MB: **no cabe** en la partición normal (1.31 MB), por eso
+se compila y se sube con `PartitionScheme=huge_app` (3 MB, sin OTA). Sin `secretos.h`, 0.76 MB.
 
 ## Subir a la placa y ver el serial
 
@@ -142,7 +144,7 @@ Notas:
 | BLANCO | pestaña siguiente (al soltar); dentro de TRACK: página siguiente; dentro de MENS: mensaje siguiente |
 | ROJO corto | entrar a la pestaña |
 | ROJO largo (0.8 s) | volver / cerrar SOS |
-| NEGRO + BLANCO 3 s | pantalla de SOS (**solo pantalla, no envía nada**) |
+| NEGRO + BLANCO 3 s | pantalla de SOS y, con red, **alerta SOS a la base** (`dinopad/alertas`). El SOS del guion `demo.h` nunca se envía |
 
 Pestañas: ESTADO, AMBIENTE, TRACK, VITAL, MENS. Etapas:
 
@@ -153,6 +155,23 @@ Pestañas: ESTADO, AMBIENTE, TRACK, VITAL, MENS. Etapas:
 | 3 | TRACK: posición propia (lat/lon, sats, altitud, antigüedad) con rótulo **GPS**; sin fix, coordenadas **DEMO** (letrero amarillo) de la base en el cráter Jezero (Marte) y 2 tripulantes simulados, todo en `posicion_demo.h`; lista de nodos (nombre corto, id, saltos, hace cuánto se oyó, MQTT) en páginas de 8, ordenada por el más reciente. **No guarda ni muestra la posición de otros nodos** | compila y pasa pruebas en PC; NO probado en la placa |
 | 4 | VITAL: BPM y SpO2 **simulados** (aviso "DEMO" amarillo), número con semáforo NORMAL / ATENCION / CRITICO con los rangos de `backend/data/crew.json`, y gráfica de 2 min con los límites del rango normal. Simulador en `simulador_vital.h`, listo para cambiarlo por el MAX30102 | compila y pasa pruebas en PC; NO probado en la placa |
 | 5 | MENS: 8 mensajes predeterminados (`mensajes.h`); dentro, NEGRO/BLANCO eligen y ROJO corto lo envía por el T1000-E (broadcast, canal primario, con seguimiento de cola y ACK) **solo si `ENVIAR_MENSAJE = true`**; queda en `false` | compila y pasa pruebas en PC; NO probado en la placa |
+
+### Red: Wi-Fi + MQTT a la base en la nube (`red_mqtt.*`)
+
+1. Copia `firmware/dinopad_pipboy/secretos.ejemplo.h` como `secretos.h` y llénalo (Wi-Fi,
+   host y usuario de HiveMQ Cloud, `CREW_ID`). `secretos.h` está en `.gitignore`.
+2. Compila y sube con `PartitionScheme=huge_app` (ver arriba).
+
+La red corre en su propia tarea (núcleo 1); `loop()` nunca la espera. Orden: Wi-Fi → hora por
+NTP (TLS la necesita para validar el certificado `ca_raiz.h`, ISRG Root X1) → broker. El pie de
+la pantalla y el serial dicen `RED: WIFI / HORA / BROKER / CONECTADA`.
+
+| Tema | Qué manda | Origen |
+|---|---|---|
+| `dinopad/vitals` | BPM y SpO₂ cada 2 s | **simulados** por el ESP32 (`source: "simulated"`, la web dice DEMO) |
+| `dinopad/alertas` | `{"type":"sos"}` al sostener NEGRO + BLANCO 3 s | persona (nunca `demo.h`) |
+| `dinopad/estado` | batería, voltaje, RSSI BLE, uso de canal, airTx, uptime, temp. ambiente y luz del T1000-E, cada 30 s | **reales** (`source: "live"`); sin batería leída no se manda |
+| `dinopad/ui` | pestaña, modo y último evento (`demo: true` si lo generó el guion), en cada evento y cada 15 s | real |
 
 Sin botones: con `DEMO_AUTOMATICO = true` (en `dinopad_pipboy.ino`) el menú se recorre
 solo siguiendo `demo.h` (pulsaciones simuladas, no datos); ponlo en `false` cuando la placa
