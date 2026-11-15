@@ -5,20 +5,10 @@
 #include <Adafruit_ILI9341.h>
 #include <SPI.h>
 
+#include <pines.h>   // firmware/libraries/dinopad_pines: pines y orientacion del panel
+
 #include "src/mtpb/config.pb.h"
 #include "src/mtpb/mesh.pb.h"
-
-// ===== PINES (como firmware/dinopad) =====
-#define TFT_CS   5
-#define TFT_DC   2
-#define TFT_RST  4
-#define SPI_FREQ 10000000   // 10 MHz
-// Orientacion, elegida con firmware/test_geometria y firmware/test_madctl:
-// este panel es 320x240 "nativo". Se usa setRotation(1) para que la libreria
-// trabaje en 320x240 y JUSTO DESPUES se escribe MADCTL (0x36) = 0x48 para que la
-// imagen salga horizontal, sin espejo y con (0,0) arriba a la izquierda.
-#define ROTACION 1
-#define MADCTL   0x48
 
 // ===== COLORES RGB565 (misma paleta que firmware/dinopad) =====
 #define COL_FONDO     0x0000
@@ -38,8 +28,8 @@
 //   y 72-171   izquierda (x 4-153): 8 pasos, 13 px por fila
 //              derecha (x 160-316): titulo + 9 filas de datos, 11 px por fila
 //   y 186-237  recuadro de resultado (ancho completo)
-#define ANCHO        320
-#define ALTO         240
+#define ANCHO        TFT_ANCHO   // 320 (pines.h)
+#define ALTO         TFT_ALTO    // 240 (pines.h)
 #define Y_ESTADO     28
 #define Y_SUBTITULO  56
 #define Y_PASOS      72
@@ -53,7 +43,7 @@
 #define ALTO_RESULT  52
 #define CHARS_LINEA  51   // caracteres de tamano 1 que caben entre x=6 y x=312
 
-static Adafruit_ILI9341 tft(TFT_CS, TFT_DC, TFT_RST);
+static Adafruit_ILI9341 tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
 
 static const char* NOMBRES_PASO[9] = {
   "", "Buscar tracker", "Conectar BLE", "Emparejar PIN", "MTU",
@@ -115,14 +105,14 @@ static void dibujarBase() {
 void iniciar(const char* mac) {
   strncpy(macGuardada, mac, sizeof macGuardada - 1);
   for (int n = 1; n <= 8; n++) pasosGuardados[n] = EstadoPaso::PENDIENTE;
-  tft.begin(SPI_FREQ);
+  tft.begin(TFT_SPI_FREQ);
   tft.fillScreen(COL_FONDO);   // negro en toda la memoria del panel antes de rotar
-  tft.setRotation(ROTACION);           // la libreria queda en 320x240
-  uint8_t madctl = MADCTL;
+  tft.setRotation(TFT_ROTACION);       // la libreria queda en 320x240
+  uint8_t madctl = TFT_MADCTL;         // JUSTO despues de setRotation (ver pines.h)
   tft.sendCommand(0x36, &madctl, 1);   // orientacion real del panel (ver arriba)
   // width()/height() son los de la libreria (fijados por setRotation, no medidos)
   Serial.printf("Pantalla: SPI %lu Hz, setRotation(%d) + MADCTL 0x%02X -> width()=%d height()=%d (diseno %dx%d)%s\n",
-                (unsigned long)SPI_FREQ, ROTACION, MADCTL, tft.width(), tft.height(), ANCHO, ALTO,
+                (unsigned long)TFT_SPI_FREQ, TFT_ROTACION, TFT_MADCTL, tft.width(), tft.height(), ANCHO, ALTO,
                 (tft.width() == ANCHO && tft.height() == ALTO) ? "" : "  AVISO: NO COINCIDE");
   redibujarTodo();
 }

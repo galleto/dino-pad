@@ -1,0 +1,3 @@
+# Codigo generado por ble_send/tools/generar_nanopb.sh a partir de los .proto
+# de Meshtastic (GPL-3.0). Pendiente de decidir la licencia: no se versiona.
+ble_send/src/mtpb/

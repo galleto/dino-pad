@@ -8,7 +8,9 @@ ILI9341 de 2.8" y conexión BLE a un SenseCAP Card Tracker T1000-E con Meshtasti
 | `ble_send/` | Se conecta por BLE al T1000-E con PIN, lee su configuración y telemetría (Nanopb) y las muestra en la pantalla. Con `ENVIAR_MENSAJE = true` manda **un** mensaje de texto por broadcast. |
 | `ble_scan/` | Escáner BLE: lista los nodos Meshtastic cercanos (sin repetidos) y marca el T1000-E objetivo. |
 | `dinopad/` | Panel de telemetría por Wi-Fi + MQTT, con tres botones (ping, sensores simulados, SOS). |
+| `test_botones/` | Encuentra a qué GPIO está soldado cada botón (muestra "GPIO n" al presionar). |
 | `test_rotacion/`, `test_geometria/`, `test_madctl/` | Pruebas de la pantalla que se usaron para encontrar la orientación correcta. |
+| `libraries/dinopad_pines/` | `pines.h`: **único** lugar con los pines de la pantalla y los botones y la orientación del panel. |
 
 ## Requisitos
 
@@ -33,17 +35,27 @@ arduino-cli lib install "NimBLE-Arduino@2.5.2" "Adafruit GFX Library@1.13.0" \
     "Adafruit ILI9341@1.7.0" "Adafruit BusIO@1.17.4" "PubSubClient@2.8"
 ```
 
-El código de Nanopb ya viene generado en `ble_send/src/mtpb/`, así que no hace
-falta instalar nada más para compilar.
+### Código de Nanopb (solo `ble_send`)
+
+`ble_send/src/mtpb/` **no está en el repo** (está en `firmware/.gitignore`), porque
+se genera a partir de archivos GPL-3.0 (ver Licencias). Antes de compilar
+`ble_send` por primera vez, genéralo (necesita `protoc`, `python3` e internet):
+
+```sh
+firmware/ble_send/tools/generar_nanopb.sh
+```
 
 ## Compilar
 
-Desde la raíz del repo:
+Desde la raíz del repo. `--libraries firmware/libraries` es necesario para que
+los sketches encuentren `pines.h`:
 
 ```sh
-arduino-cli compile --fqbn esp32:esp32:esp32 firmware/ble_send
+arduino-cli compile --fqbn esp32:esp32:esp32 --libraries firmware/libraries firmware/ble_send
+arduino-cli compile --fqbn esp32:esp32:esp32 --libraries firmware/libraries firmware/dinopad
+arduino-cli compile --fqbn esp32:esp32:esp32 --libraries firmware/libraries firmware/dinopad_pipboy
+arduino-cli compile --fqbn esp32:esp32:esp32 --libraries firmware/libraries firmware/test_botones
 arduino-cli compile --fqbn esp32:esp32:esp32 firmware/ble_scan
-arduino-cli compile --fqbn esp32:esp32:esp32 firmware/dinopad
 ```
 
 Uso aproximado de flash: `ble_send` 51 %, `ble_scan` 45 %, `dinopad` 71 %.
@@ -58,7 +70,7 @@ ls /dev/serial/by-id/
 # ej.: usb-Silicon_Labs_CP2102_USB_to_UART_Bridge_Controller_0001-if00-port0
 
 arduino-cli upload -p /dev/serial/by-id/usb-Silicon_Labs_CP2102_USB_to_UART_Bridge_Controller_0001-if00-port0 \
-    --fqbn esp32:esp32:esp32 firmware/ble_send
+    --fqbn esp32:esp32:esp32 firmware/ble_send   # sube lo ultimo compilado
 arduino-cli monitor -p /dev/serial/by-id/usb-Silicon_Labs_CP2102_USB_to_UART_Bridge_Controller_0001-if00-port0 \
     -c baudrate=115200
 ```
@@ -70,14 +82,18 @@ Tu usuario debe estar en el grupo `uucp` (en Arch/CachyOS) para usar el puerto s
 
 ## Hardware
 
-Pantalla ILI9341 por SPI (pines SPI por defecto del ESP32: SCK 18, MOSI 23, MISO 19):
+Todos los pines están en `libraries/dinopad_pines/src/pines.h`. Placa: ESP32
+clásico (ESP32-D0WD-V3). Pantalla ILI9341 por SPI (VSPI: SCK 18, MOSI 23, MISO 19):
 
-| Señal | GPIO |
-|---|---|
-| CS | 5 |
-| DC | 2 |
-| RST | 4 |
-| Botón negro / blanco / rojo (`dinopad`) | 13 / 14 / 26 (a GND, con `INPUT_PULLUP`) |
+| Señal | GPIO | Constante en `pines.h` |
+|---|---|---|
+| Pantalla CS / DC / RST | 5 / 2 / 4 | `PIN_TFT_CS`, `PIN_TFT_DC`, `PIN_TFT_RST` |
+| Botón NEGRO | 13 | `PIN_BTN_NEGRO` |
+| Botón BLANCO | 26 | `PIN_BTN_BLANCO` |
+| Botón ROJO | 14 | `PIN_BTN_ROJO` |
+
+Los botones van a GND (`INPUT_PULLUP`, presionado = LOW). Se midieron con
+`test_botones`; el sketch original tenía BLANCO y ROJO al revés (14 y 26).
 
 **Orientación:** este panel se comporta como 320×240 "nativo". La combinación que
 funciona (encontrada con `test_geometria` y `test_madctl`) es:
@@ -160,8 +176,8 @@ Usa nanopb 0.4.9.3 en un entorno de Python temporal y reescribe `ble_send/src/mt
 
 ## Licencias
 
-`ble_send/src/mtpb/` contiene código generado a partir de los `.proto` de
-[meshtastic/protobufs](https://github.com/meshtastic/protobufs) (GPL-3.0) y el
-runtime de [nanopb](https://github.com/nanopb/nanopb) (zlib). Sus licencias están
-en esa carpeta. El resto del repo es MIT; si distribuyes el firmware compilado,
-revisa cómo te afecta la GPL.
+`ble_send/src/mtpb/` (generado localmente, fuera del repo) contiene código
+derivado de los `.proto` de [meshtastic/protobufs](https://github.com/meshtastic/protobufs)
+(GPL-3.0) y el runtime de [nanopb](https://github.com/nanopb/nanopb) (zlib); el
+script copia sus licencias en esa carpeta. El resto del repo es MIT; si
+distribuyes el firmware compilado de `ble_send`, revisa cómo te afecta la GPL.
