@@ -13,6 +13,10 @@ La etapa es visual (paleta, tipografía, vidrio, fondo, rótulos de origen); el 
 (figura humana) sigue **parcial**: ya hay figura SVG con zonas que toman el color del
 semáforo, pero falta el dossier con la función de cada zona (pieza B).
 
+**Tras C y D:** D refuerza el requisito 2 (acciones para prevenir una condición crítica) con
+el protocolo de refugio paso a paso; es un ejemplo del proyecto, rotulado "referencia a
+confirmar".
+
 ## Matriz
 
 | # | Requisito del reto | Dónde se cumple hoy | Estado | Qué falta | Después |

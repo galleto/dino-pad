@@ -57,8 +57,20 @@ con `npx vite preview --port 4317` corriendo en frontend/).
 Sin verificar en C: insignia "EN VIVO" (necesita lecturas `live` del backend), fidelidad de
 la fuente contra el dispositivo físico, toque con dos dedos en un celular real.
 
+## Pieza D · Modo tormenta solar (TERMINADA)
+
+- `components/Tormenta.jsx`, `estadoMision.js` (stores de presentación), `sonido.js`
+  (Web Audio, apagado por defecto). Estilos al final de `layout.css` (`.modo-tormenta`).
+- Se enciende con una alerta cuyo texto hable de radiación/tormenta solar, o con el botón
+  "Simulacro de tormenta solar" de Laboratorio (que además pone el escenario "Tormenta solar").
+- Cuenta regresiva de 10 min (regla del simulacro), 5 pasos marcables y pase de lista.
+- No crea, cambia ni reconoce alertas. Playwright: se enciende, persiste al navegar, se
+  apaga, no aparece banner SOS, sin errores de consola.
+- Sin verificar: activación por una alerta real de radiación del backend (hoy ninguna regla
+  la genera; el detector busca el texto en título/mensaje).
+
 ## Siguiente
-C DINO PAD EN VIVO · D tormenta solar · E a I.
+C DINO PAD EN VIVO · E a I.
 
 ## Decisiones
 - Navegación arriba en pestañas (hermana del firmware) en lugar de barra lateral.

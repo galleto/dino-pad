@@ -4,6 +4,8 @@ import { useConnection } from './hooks/useConnection';
 import { AlertsPage, CrewPage, EmergencyPage, EmptyPage, HistoryPage, LabPage, MonitorPage, RisksPage, TrendsPage } from './components/Pages';
 import Starfield from './components/Starfield';
 import DinoPadPage from './components/DinoPadPage';
+import Tormenta from './components/Tormenta';
+import { tormentaStore, useStore } from './components/estadoMision';
 import { ClaveOrigen } from './components/Origen';
 import './styles/tokens.css';
 import './styles/layout.css';
@@ -42,6 +44,7 @@ function App() {
   const [pwaError, setPwaError] = useState(false);
   const { crew, activeCrewId, setActiveCrewId } = useVitals();
   const { connectionState, alerts, acknowledgeSos, acknowledgedSos, synchronized, cacheWarning, lastCachedAt } = useConnection();
+  const [tormenta] = useStore(tormentaStore);
   const activeCrew = crew[activeCrewId] || Object.values(crew)[0];
   const connectionLabel = { live: 'EN VIVO', simulator: 'SIMULADOR LOCAL', offline: 'SIN ENLACE', checking: 'CONECTANDO' }[connectionState];
   const sosAlert = alerts.find((alert) => /sos/i.test(`${alert.title || ''} ${alert.action || ''}`) && alert.id !== acknowledgedSos);
@@ -87,7 +90,7 @@ function App() {
   };
 
   return (
-    <div className="app-shell scanlines">
+    <div className={`app-shell scanlines${tormenta ? ' modo-tormenta' : ''}`}>
       <Starfield />
       <div className="reticula" aria-hidden="true" />
       <header className="masthead">
@@ -111,6 +114,7 @@ function App() {
         </div>
       </header>
       <div className="workspace">
+        <Tormenta alerts={alerts} crew={crew} />
         {sosAlert && <div className="sos-banner" role="alert"><span className="sos-beacon" /><div><strong>ALERTA SOS RECIBIDA</strong><p>{sosAlert.message || 'Se requiere atención inmediata de la tripulación.'}</p></div><button className="button button-danger" onClick={() => acknowledgeSos(sosAlert.id)}>Reconocer SOS</button></div>}
         {synchronized && <div className="sync-notice" role="status">● Sincronizado con el backend</div>}
         {cacheWarning && <div className="cache-warning" role="status">{cacheWarning}</div>}

@@ -8,6 +8,7 @@ import { etiquetaOrigen } from './origenes';
 import { LeyendaOrigen } from './Origen';
 import { api } from '../services/api';
 import HealthAlerts from './HealthAlerts';
+import { tormentaStore } from './estadoMision';
 import VitalMetrics from './VitalMetrics';
 
 function usePageData() {
@@ -299,6 +300,7 @@ export function LabPage() {
                 </button>
               );
             })}</div>
+            <div className="lab-tormenta"><button type="button" className="button button-danger" onClick={() => { data.setScenario('solar'); tormentaStore.set({ origen: 'demo', inicio: Date.now() }); }}>Simulacro de tormenta solar</button><span>Activa el escenario "Tormenta solar" y el modo visual de refugio en toda la interfaz. No crea alertas.</span></div>
             <p className="scenario-active">ESCENARIO SELECCIONADO: <strong>{data.scenarios[data.scenario]?.name || 'Día normal'}</strong></p>
           </section>
           <div className="lab-notas">
