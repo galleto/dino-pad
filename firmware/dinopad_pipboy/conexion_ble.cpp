@@ -22,6 +22,8 @@ static const uint32_t SONDEO_MS        = 10000;   // leer FromRadio aunque no av
 static const uint32_t RSSI_MS          = 5000;
 static const int      MAX_PAQUETES     = 600;
 static const bool     VOLCADO          = false;   // true: imprime cada FromRadio por serial
+static const uint32_t ESPERA_COLA_MS   = 10000;   // espera del QueueStatus tras escribir
+static const uint32_t ESPERA_ACK_MS    = 60000;   // espera del Routing (ACK/NAK)
 
 // UUIDs de https://meshtastic.org/docs/development/device/client-api/
 static const NimBLEUUID UUID_SERVICIO ("6ba1b218-15a8-461f-9fa8-5dcae273eafd");
@@ -101,6 +103,68 @@ class CallbacksCliente : public NimBLEClientCallbacks {
     NimBLEDevice::injectConfirmPasskey(info, false);   // no deberia ocurrir (IO = teclado)
   }
 } callbacksCliente;
+
+// ---------- Envio de texto ----------
+static uint32_t qsBase = 0;   // qsContador antes de escribir el mensaje
+
+static void ponerEnvio(Compartido& c, EstadoEnvio e, int detalle = 0) {
+  c.envio = e;
+  c.envioDetalle = detalle;
+  c.envioMs = millis();
+  c.version++;
+  Serial.printf("[ENVIO] %s \"%s\"", nombreEstadoEnvio(e), c.envioTexto);
+  if (e == EstadoEnvio::EN_COLA || e == EstadoEnvio::ACK || e == EstadoEnvio::NAK)
+    Serial.printf(" id=%lu", (unsigned long)c.envioId);
+  if (e == EstadoEnvio::NAK)
+    Serial.printf(" error=%s", meshtastic_Routing_Error_name((meshtastic_Routing_Error)detalle));
+  if (e == EstadoEnvio::RECHAZADO) Serial.printf(" res=%d", detalle);
+  Serial.println();
+}
+
+// Si loop() pidio un envio, lo escribe en ToRadio (broadcast, canal primario, want_ack).
+static void escribirPedido() {
+  char texto[40];
+  compartidoBloquear();
+  Compartido& c = compartidoRef();
+  bool hay = c.envio == EstadoEnvio::PEDIDO;
+  if (hay) {
+    snprintf(texto, sizeof texto, "%s", c.envioTexto);
+    qsBase = c.datos.qsContador;
+  }
+  compartidoSoltar();
+  if (!hay) return;
+
+  uint8_t buf[300];
+  size_t n = mt::encodeTextPacket(buf, sizeof buf, texto);
+  bool ok = n && n <= (size_t)(cli->getMTU() - 3) && chToRadio->writeValue(buf, n, true);
+  compartidoBloquear();
+  ponerEnvio(compartidoRef(), ok ? EstadoEnvio::ESCRITO : EstadoEnvio::ERROR);
+  compartidoSoltar();
+  avisosFromNum++;   // leer FromRadio ya para ver el QueueStatus
+}
+
+// Despues de leer FromRadio: avanza el envio con el QueueStatus y el Routing recibidos.
+static void seguirEnvio() {
+  compartidoBloquear();
+  Compartido& c = compartidoRef();
+  const DatosTracker& d = c.datos;
+  uint32_t t = millis() - c.envioMs;
+  if (c.envio == EstadoEnvio::ESCRITO) {
+    if (d.qsContador != qsBase) {
+      c.envioId = d.qsPacketId;
+      if (d.qsRes == 0) ponerEnvio(c, EstadoEnvio::EN_COLA);
+      else ponerEnvio(c, EstadoEnvio::RECHAZADO, d.qsRes);
+    } else if (t > ESPERA_COLA_MS) {
+      ponerEnvio(c, EstadoEnvio::SIN_RESPUESTA);
+    }
+  } else if (c.envio == EstadoEnvio::EN_COLA) {
+    if (d.tieneRouting && c.envioId && d.routingRequestId == c.envioId)
+      ponerEnvio(c, d.routingError == 0 ? EstadoEnvio::ACK : EstadoEnvio::NAK, d.routingError);
+    else if (t > ESPERA_ACK_MS)
+      ponerEnvio(c, EstadoEnvio::SIN_RESPUESTA);
+  }
+  compartidoSoltar();
+}
 
 // ---------- FromRadio ----------
 // Lee hasta vacio. Devuelve paquetes leidos o -1 si fallo una lectura.
@@ -206,12 +270,14 @@ static uint32_t conectarYEscuchar() {
   ponerEstado(EstadoBle::CONECTADO);
   uint32_t ultimoSondeo = millis(), ultimoRssi = 0;
   while (cli->isConnected() && !desconectado) {
+    escribirPedido();
     uint32_t ahora = millis();
     if (avisosFromNum > 0 || ahora - ultimoSondeo >= SONDEO_MS) {
       avisosFromNum = 0;
       ultimoSondeo = ahora;
       if (drenar(0, nullptr) < 0) break;
     }
+    seguirEnvio();
     if (ahora - ultimoRssi >= RSSI_MS) {
       ultimoRssi = ahora;
       int r = cli->getRssi();

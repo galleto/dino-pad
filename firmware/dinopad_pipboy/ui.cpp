@@ -6,6 +6,9 @@
 #include <SPI.h>
 #include <pines.h>
 
+#include "mensajes.h"
+#include "posicion_demo.h"
+
 const char* const NOMBRES_PESTANA[N_PESTANAS] = {"ESTADO", "AMBIENTE", "TRACK", "VITAL", "MENS"};
 
 // ===== COLORES (RGB565) =====
@@ -17,6 +20,7 @@ const char* const NOMBRES_PESTANA[N_PESTANAS] = {"ESTADO", "AMBIENTE", "TRACK", 
 #define COL_BLANCO    0xFFFF
 #define COL_AMARILLO  0xFFE0
 #define COL_GRIS      0x8410
+#define COL_NEGRO     0x0000
 
 // ===== DISENO (320 x 240) =====
 //   y 0-22     barra de titulo + indicador BLE
@@ -38,6 +42,9 @@ static const uint32_t VIEJO_RSSI_MS     = 15000;    // RSSI se lee cada 5 s cone
 static const uint32_t VIEJO_AMBIENTE_S  = 150;      // ambiente llega cada ~60 s (si esta activado)
 static const uint32_t VENTANA_GRAFICA_S = 30 * 60;  // las graficas muestran los ultimos 30 min
 static const uint32_t HUECO_GRAFICA_S   = 5 * 60;   // no unir puntos separados mas de 5 min
+static const uint32_t VIEJO_POSICION_S  = 15 * 60;  // posicion propia en gris despues de 15 min
+static const uint32_t NODO_RECIENTE_S   = 15 * 60;  // nodo oido hace menos: verde
+static const uint32_t NODO_VIEJO_S      = 2 * 3600; // nodo oido hace mas: gris
 
 static Adafruit_ILI9341 tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
 
@@ -55,6 +62,12 @@ enum IdCampo {
   C_EST_EXTRA,
   // AMBIENTE
   C_AMB_TEMP, C_AMB_TEMP_E, C_AMB_LUZ, C_AMB_LUZ_E,
+  // TRACK
+  C_TRK_POS, C_TRK_POS_E, C_TRK_DET, C_TRK_TITULO, C_TRK_ETIQ, C_TRK_FUENTE,
+  // VITAL
+  C_VIT_HR, C_VIT_HR_EST, C_VIT_SPO2, C_VIT_SPO2_EST, C_VIT_DEMO1, C_VIT_DEMO2, C_VIT_EDAD,
+  // MENS (una fila por mensaje predeterminado)
+  C_MEN_0, C_MEN_7 = C_MEN_0 + 7,
   N_CAMPOS
 };
 static Campo campos[N_CAMPOS];
@@ -64,9 +77,27 @@ static uint32_t graficaVersion = 0;
 static uint32_t graficaMinuto = 0;
 static bool graficaValida = false;
 
+// Filas de la lista de nodos (TRACK): mas largas que un Campo, con su propia cache
+static const int FILAS_TRACK = 8;
+static const int ANCHO_FILA_TRACK = 50;   // caracteres de 6 px
+struct FilaTrack {
+  char texto[ANCHO_FILA_TRACK + 1];
+  uint16_t color;
+  bool valido;
+};
+static FilaTrack filasTrack[FILAS_TRACK];
+static int paginaTrack = 0;
+static int cursorMens = 0;
+
+// Graficas de VITAL: se redibujan con cada muestra nueva
+static uint32_t graficaVitalVersion = 0;
+static bool graficaVitalValida = false;
+
 static void invalidarCampos() {
   for (auto& c : campos) c.valido = false;
+  for (auto& f : filasTrack) f.valido = false;
   graficaValida = false;
+  graficaVitalValida = false;
 }
 
 // Dibuja 'texto' en (x,y) con fondo negro, rellenando hasta 'ancho' caracteres
@@ -176,11 +207,31 @@ static void marcoContenido(int pestana, Modo modo) {
     tft.print("30min");
     tft.setCursor(262, Y_CONTENIDO + 5);
     tft.print("30min");
-  } else {
-    // Pestanas todavia vacias
-    textoCentrado(NOMBRES_PESTANA[pestana], Y_CONTENIDO + 40, 3, COL_VERDE, COL_FONDO);
-    textoCentrado("(vacia: proxima etapa)", Y_CONTENIDO + 84, 1, COL_VERDE_MED, COL_FONDO);
+  } else if (pestana == P_TRACK) {
+    // Arriba la posicion propia, abajo la lista de nodos (los valores los pone actualizar())
+    tft.setTextSize(1);
+    tft.setTextColor(COL_GRIS, COL_FONDO);
+    tft.drawFastHLine(6, Y_CONTENIDO + 47, TFT_ANCHO - 12, COL_VERDE_OSC);
+    tft.setCursor(8, Y_CONTENIDO + 52);
+    tft.print("NOMB ID         SALTOS  OIDO");
+  } else if (pestana == P_VITAL) {
+    tft.setTextSize(1);
+    tft.setTextColor(COL_GRIS, COL_FONDO);
+    tft.setCursor(6, Y_CONTENIDO + 5);
+    tft.print("BPM");
+    tft.setCursor(164, Y_CONTENIDO + 5);
+    tft.print("SpO2");
+    tft.setTextColor(COL_VERDE_OSC, COL_FONDO);
+    tft.setCursor(60, Y_CONTENIDO + 30);
+    tft.print("lpm");
+    tft.setCursor(218, Y_CONTENIDO + 30);
+    tft.print("%");
+    tft.setCursor(134, Y_CONTENIDO + 5);
+    tft.print("2min");
+    tft.setCursor(292, Y_CONTENIDO + 5);
+    tft.print("2min");
   }
+  // MENS: las filas las pone actualizar()
 }
 
 void pie(const char* evento) {
@@ -455,7 +506,232 @@ static void contenidoAmbiente(const Compartido& c, uint32_t ahora) {
   }
 }
 
-void actualizar(int pestana, Modo modo, const Compartido& c, uint32_t ahora) {
+// ---------- TRACK ----------
+// Sin fix de GPS se usan las coordenadas DEMO (posicion_demo.h): la base y, en las
+// primeras filas de la lista, los tripulantes simulados.
+static bool posicionDemo(const DatosTracker& d) { return !d.tienePosicion; }
+
+static int filasNodos(const DatosTracker& d) {
+  return posicionDemo(d) ? FILAS_TRACK - posdemo::N_TRIPULANTES : FILAS_TRACK;
+}
+
+static int paginasTrack(const DatosTracker& d) {
+  int n = d.nodos.cantidad(), f = filasNodos(d);
+  return n ? (n + f - 1) / f : 1;
+}
+
+static void filaTrack(int i, uint16_t color, const char* texto) {
+  FilaTrack& f = filasTrack[i];
+  if (f.valido && f.color == color && strcmp(f.texto, texto) == 0) return;
+  snprintf(f.texto, sizeof f.texto, "%s", texto);
+  f.color = color;
+  f.valido = true;
+  char t[ANCHO_FILA_TRACK + 1];
+  snprintf(t, sizeof t, "%-*.*s", ANCHO_FILA_TRACK, ANCHO_FILA_TRACK, texto);
+  tft.setTextSize(1);
+  tft.setTextColor(color, COL_FONDO);
+  tft.setCursor(8, Y_CONTENIDO + 64 + i * 10);
+  tft.print(t);
+}
+
+static const char* textoGps(const DatosTracker& d) {
+  if (!d.tieneCfgPosicion) return "";
+  switch (d.gpsMode) {   // meshtastic_Config_PositionConfig_GpsMode
+    case 0:  return "GPS off";
+    case 1:  return "GPS on";
+    case 2:  return "sin GPS";
+    default: return "GPS ?";
+  }
+}
+
+static void contenidoTrack(const Compartido& c, uint32_t ahora) {
+  const DatosTracker& d = c.datos;
+  uint32_t ahoraEpoch = epochEstimado(d, ahora);
+  char v[40], e[12];
+
+  // Posicion propia. Antiguedad por la hora del GPS si se conoce, si no por millis()
+  bool demo = posicionDemo(d);
+  campo(C_TRK_ETIQ, 8, Y_CONTENIDO + 5, 1, COL_GRIS, 19, demo ? posdemo::NOMBRE_BASE : "POSICION PROPIA");
+  campo(C_TRK_FUENTE, 128, Y_CONTENIDO + 5, 1, COL_NEGRO, 4, demo ? "DEMO" : "GPS",
+        demo ? COL_AMARILLO : COL_VERDE);
+  if (!demo) {
+    uint32_t edadS;
+    if (d.epochPosicion && ahoraEpoch) edadS = ahoraEpoch > d.epochPosicion ? ahoraEpoch - d.epochPosicion : 0;
+    else edadS = (ahora - d.msPosicion) / 1000;
+    bool viejo = edadS > VIEJO_POSICION_S;
+    snprintf(v, sizeof v, "%.5f %.5f", d.latitudI * 1e-7, d.longitudI * 1e-7);
+    campo(C_TRK_POS, 8, Y_CONTENIDO + 17, 2, viejo ? COL_GRIS : COL_VERDE, 21, v);
+    edadSegundos(e, sizeof e, edadS);
+    campo(C_TRK_POS_E, 270, Y_CONTENIDO + 5, 1, COL_GRIS, 7, e);
+    int n = snprintf(v, sizeof v, "sats %lu", (unsigned long)d.satelites);
+    if (d.tieneAltitud) n += snprintf(v + n, sizeof v - n, "  alt %ld m", (long)d.altitud);
+    snprintf(v + n, sizeof v - n, "  %s", textoGps(d));
+    campo(C_TRK_DET, 8, Y_CONTENIDO + 36, 1, COL_VERDE_MED, 27, v);
+  } else {
+    // Coordenadas fijas de la base DEMO + por que no hay posicion real
+    snprintf(v, sizeof v, "%.5f %.5f", posdemo::BASE_LAT, posdemo::BASE_LON);
+    campo(C_TRK_POS, 8, Y_CONTENIDO + 17, 2, COL_AMARILLO, 21, v);
+    campo(C_TRK_POS_E, 270, Y_CONTENIDO + 5, 1, COL_GRIS, 7, "fija");
+    const char* motivo = !d.tieneCfgPosicion ? "GPS: sin dato" : d.gpsMode == 0 ? "GPS apagado" :
+                         d.gpsMode == 2 ? "sin GPS" : "GPS sin fix";
+    snprintf(v, sizeof v, "%s: usando DEMO", motivo);
+    campo(C_TRK_DET, 8, Y_CONTENIDO + 36, 1, COL_VERDE_MED, 27, v);
+  }
+
+  // Lista de nodos, del oido mas recientemente al mas viejo, por paginas
+  int paginas = paginasTrack(d);
+  if (paginaTrack >= paginas) paginaTrack = paginas - 1;
+  snprintf(v, sizeof v, "%u nodos  %d/%d", (unsigned)d.nodos.cantidad(), paginaTrack + 1, paginas);
+  campo(C_TRK_TITULO, 200, Y_CONTENIDO + 52, 1, COL_VERDE_MED, 18, v);
+
+  // Tripulantes simulados (solo con coordenadas DEMO): primeras filas, en amarillo
+  int fila0 = 0;
+  if (demo) {
+    uint32_t s = ahora / 1000;
+    for (int t = 0; t < posdemo::N_TRIPULANTES; t++) {
+      float no, es;
+      double la, lo;
+      posdemo::desplazamiento(t, s, no, es);
+      posdemo::aGrados(no, es, la, lo);
+      char fila[72];
+      snprintf(fila, sizeof fila, "%-4s %.5f %.5f %4.0fm %-2s DEMO", posdemo::TRIPULANTES[t].corto, la, lo,
+               posdemo::distanciaM(no, es), posdemo::rumbo(no, es));
+      filaTrack(t, COL_AMARILLO, fila);
+    }
+    fila0 = posdemo::N_TRIPULANTES;
+  }
+
+  static uint8_t idx[ListaNodos::N];
+  int n = d.nodos.ordenados(idx);
+  int porPagina = filasNodos(d);
+  for (int i = fila0; i < FILAS_TRACK; i++) {
+    int k = paginaTrack * porPagina + (i - fila0);
+    if (k >= n) {
+      filaTrack(i, COL_GRIS, (k == 0) ? "sin nodos todavia" : "");
+      continue;
+    }
+    const NodoVisto& x = d.nodos.nodo(idx[k]);
+    char saltos[10];
+    if (x.tieneSaltos) snprintf(saltos, sizeof saltos, "%u", (unsigned)x.saltos);
+    else snprintf(saltos, sizeof saltos, "?");
+    uint16_t color = COL_GRIS;
+    if (x.lastHeard && ahoraEpoch) {
+      uint32_t s = ahoraEpoch > x.lastHeard ? ahoraEpoch - x.lastHeard : 0;
+      edadSegundos(e, sizeof e, s);
+      color = s < NODO_RECIENTE_S ? COL_VERDE : s < NODO_VIEJO_S ? COL_VERDE_MED : COL_GRIS;
+    } else {
+      snprintf(e, sizeof e, "--");
+    }
+    char fila[72];
+    snprintf(fila, sizeof fila, "%-4s !%08lx  %-6s  %-5s%s", x.corto[0] ? x.corto : "?", (unsigned long)x.num,
+             saltos, e, x.viaMqtt ? " MQTT" : "");
+    filaTrack(i, color, fila);
+  }
+}
+
+
+// ---------- VITAL ----------
+static uint16_t colorSemaforo(Semaforo s) {
+  return s == Semaforo::NORMAL ? COL_VERDE : s == Semaforo::ATENCION ? COL_AMARILLO : COL_ROJO;
+}
+
+static const uint32_t VENTANA_VITAL_MS = 120000;   // las graficas muestran los ultimos 2 min
+
+// Grafica de un signo vital con escala fija y lineas en los limites del rango normal.
+static void graficaVital(int x, int y, int w, int h, const HistorialVital& hist, bool esSpo2,
+                         const RangoVital& r, float vmin, float vmax, uint32_t ahora) {
+  tft.fillRect(x + 1, y + 1, w - 2, h - 2, COL_FONDO);
+  tft.drawRect(x, y, w, h, COL_VERDE_OSC);
+  auto yDe = [&](float v) {
+    if (v < vmin) v = vmin;
+    if (v > vmax) v = vmax;
+    return y + h - 3 - (int)((h - 6) * (v - vmin) / (vmax - vmin));
+  };
+  // Limites del rango normal (punteados)
+  for (float lim : {r.okMin, r.okMax}) {
+    if (lim <= vmin || lim >= vmax) continue;
+    int yl = yDe(lim);
+    for (int px = x + 2; px < x + w - 2; px += 4) tft.drawPixel(px, yl, COL_VERDE_MED);
+  }
+  char t[8];
+  tft.setTextSize(1);
+  tft.setTextColor(COL_VERDE_MED, COL_FONDO);
+  snprintf(t, sizeof t, "%.0f", vmax);
+  tft.setCursor(x + 3, y + 3);
+  tft.print(t);
+  snprintf(t, sizeof t, "%.0f", vmin);
+  tft.setCursor(x + 3, y + h - 10);
+  tft.print(t);
+
+  int px0 = 0, py0 = 0;
+  bool hayPrevio = false;
+  for (int i = 0; i < hist.cantidad(); i++) {
+    const MuestraVital& m = hist.muestra(i);
+    uint32_t atras = ahora - m.ms;
+    if (atras > VENTANA_VITAL_MS) continue;
+    float v = esSpo2 ? m.spo2 : m.hr;
+    int px = x + w - 3 - (int)((long)(w - 6) * (long)atras / (long)VENTANA_VITAL_MS);
+    int py = yDe(v);
+    uint16_t col = colorSemaforo(clasificar(v, r));
+    if (hayPrevio) tft.drawLine(px0, py0, px, py, col);
+    px0 = px; py0 = py;
+    hayPrevio = true;
+  }
+}
+
+static void contenidoVital(const DatosVitales& vit, uint32_t ahora) {
+  const MuestraVital* m = vit.historial.ultima();
+  // Aviso de datos simulados, siempre visible mientras lo sean
+  campo(C_VIT_DEMO1, 100, Y_CONTENIDO + 5, 1, COL_NEGRO, 4, vit.simulado ? "DEMO" : "", vit.simulado ? COL_AMARILLO : COL_FONDO);
+  campo(C_VIT_DEMO2, 258, Y_CONTENIDO + 5, 1, COL_NEGRO, 4, vit.simulado ? "DEMO" : "", vit.simulado ? COL_AMARILLO : COL_FONDO);
+  if (!m) {
+    campo(C_VIT_HR, 6, Y_CONTENIDO + 16, 3, COL_GRIS, 3, "--");
+    campo(C_VIT_SPO2, 164, Y_CONTENIDO + 16, 3, COL_GRIS, 3, "--");
+    campo(C_VIT_HR_EST, 90, Y_CONTENIDO + 22, 1, COL_GRIS, 8, "sin dato");
+    campo(C_VIT_SPO2_EST, 248, Y_CONTENIDO + 22, 1, COL_GRIS, 8, "sin dato");
+    return;
+  }
+  char v[8];
+  Semaforo sh = clasificar(m->hr, RANGO_HR), ss = clasificar(m->spo2, RANGO_SPO2);
+  snprintf(v, sizeof v, "%u", (unsigned)m->hr);
+  campo(C_VIT_HR, 6, Y_CONTENIDO + 16, 3, colorSemaforo(sh), 3, v);
+  campo(C_VIT_HR_EST, 90, Y_CONTENIDO + 22, 1, colorSemaforo(sh), 8, nombreSemaforo(sh));
+  snprintf(v, sizeof v, "%u", (unsigned)m->spo2);
+  campo(C_VIT_SPO2, 164, Y_CONTENIDO + 16, 3, colorSemaforo(ss), 3, v);
+  campo(C_VIT_SPO2_EST, 248, Y_CONTENIDO + 22, 1, colorSemaforo(ss), 8, nombreSemaforo(ss));
+
+  if (!graficaVitalValida || graficaVitalVersion != vit.historial.version()) {
+    int yG = Y_CONTENIDO + 44;
+    graficaVital(6, yG, 150, ALTO_CONT - 48, vit.historial, false, RANGO_HR, 40, 120, ahora);
+    graficaVital(164, yG, 150, ALTO_CONT - 48, vit.historial, true, RANGO_SPO2, 85, 100, ahora);
+    graficaVitalVersion = vit.historial.version();
+    graficaVitalValida = true;
+  }
+}
+
+// ---------- MENS ----------
+static void contenidoMens(Modo modo) {
+  bool dentro = modo == Modo::DENTRO;
+  char t[28];
+  for (int i = 0; i < N_MENSAJES; i++) {
+    bool sel = dentro && i == cursorMens;
+    snprintf(t, sizeof t, "%c%s", sel ? '>' : ' ', MENSAJES_PREDETERMINADOS[i]);
+    campo((IdCampo)(C_MEN_0 + i), 8, Y_CONTENIDO + 6 + i * 16, 2, sel ? COL_NEGRO : COL_VERDE, 25, t,
+          sel ? COL_VERDE : COL_FONDO);
+  }
+}
+
+void moverCursorMens(int delta) { cursorMens = (cursorMens + N_MENSAJES + delta) % N_MENSAJES; }
+const char* mensajeSeleccionado() { return MENSAJES_PREDETERMINADOS[cursorMens]; }
+
+void moverPaginaTrack(int delta) {
+  paginaTrack += delta;
+  if (paginaTrack < 0) paginaTrack = 0;   // el tope superior se ajusta en contenidoTrack
+}
+
+void reiniciarPaginaTrack() { paginaTrack = 0; }
+
+void actualizar(int pestana, Modo modo, const Compartido& c, const DatosVitales& v, uint32_t ahora) {
   if (modo == Modo::SOS) return;
 
   // Indicador BLE en la barra de titulo (todas las pestanas)
@@ -466,6 +742,9 @@ void actualizar(int pestana, Modo modo, const Compartido& c, uint32_t ahora) {
 
   if (pestana == P_ESTADO) contenidoEstado(c, ahora);
   else if (pestana == P_AMBIENTE) contenidoAmbiente(c, ahora);
+  else if (pestana == P_TRACK) contenidoTrack(c, ahora);
+  else if (pestana == P_VITAL) contenidoVital(v, ahora);
+  else if (pestana == P_MENS) contenidoMens(modo);
 }
 
 // ---------- SOS ----------

@@ -20,6 +20,21 @@ const char* nombreEstadoBle(EstadoBle e) {
   return "?";
 }
 
+const char* nombreEstadoEnvio(EstadoEnvio e) {
+  switch (e) {
+    case EstadoEnvio::NINGUNO:       return "NINGUNO";
+    case EstadoEnvio::PEDIDO:        return "PEDIDO";
+    case EstadoEnvio::ESCRITO:       return "ESCRITO";
+    case EstadoEnvio::EN_COLA:       return "EN COLA";
+    case EstadoEnvio::ACK:           return "ACK";
+    case EstadoEnvio::NAK:           return "NAK";
+    case EstadoEnvio::RECHAZADO:     return "RECHAZADO";
+    case EstadoEnvio::SIN_RESPUESTA: return "SIN RESPUESTA";
+    case EstadoEnvio::ERROR:         return "ERROR";
+  }
+  return "?";
+}
+
 void compartidoIniciar() {
   if (!mutex) mutex = xSemaphoreCreateMutex();
 }

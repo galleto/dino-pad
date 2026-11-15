@@ -128,6 +128,7 @@ static void tomarPosicion(const meshtastic_Position& p, DatosTracker& d, uint32_
     d.longitudI = p.longitude_i;
     d.satelites = p.sats_in_view;
     d.msPosicion = ahora ? ahora : 1;
+    d.epochPosicion = p.time;
   }
   if (p.has_altitude) { d.tieneAltitud = true; d.altitud = p.altitude; }
   d.cambio = true;
@@ -171,6 +172,12 @@ static void procesarPaquete(const meshtastic_MeshPacket& p, DatosTracker& d, Est
     if (p.hop_start >= p.hop_limit && p.hop_start) v(" saltos=%u", (unsigned)(p.hop_start - p.hop_limit));
     if (p.via_mqtt) v(" via_mqtt");
     v(" ch=%u", (unsigned)p.channel);
+  }
+  if (!propio && p.from) {   // otro nodo oido: actualizar la lista (sin su posicion)
+    bool tieneSaltos = p.hop_start && p.hop_start >= p.hop_limit;
+    uint32_t oido = p.has_rx_time ? p.rx_time : epochEstimado(d, ahora);
+    d.nodos.actualizar(p.from, nullptr, tieneSaltos, (uint8_t)(p.hop_start - p.hop_limit), oido, p.via_mqtt);
+    d.cambio = true;
   }
 
   if (p.which_payload_variant != meshtastic_MeshPacket_decoded_tag) {
@@ -306,6 +313,11 @@ void procesarFromRadio(const meshtastic_FromRadio& fr, DatosTracker& d, Estadist
           else v(" pos:si");
         }
       }
+      if (!propio) {
+        d.nodos.actualizar(n.num, n.has_user ? n.user.short_name : nullptr, n.has_hops_away, n.hops_away,
+                           n.last_heard, n.via_mqtt);
+        d.cambio = true;
+      }
       if (propio) {
         if (n.has_user) {
           d.tieneUsuario = true;
@@ -389,6 +401,10 @@ void procesarFromRadio(const meshtastic_FromRadio& fr, DatosTracker& d, Estadist
       if (v) v(" %lu", (unsigned long)fr.config_complete_id);
       break;
     case meshtastic_FromRadio_queueStatus_tag:
+      d.tieneQueueStatus = true;
+      d.qsRes = fr.queueStatus.res;
+      d.qsPacketId = fr.queueStatus.mesh_packet_id;
+      d.qsContador++;
       if (v) v(" res=%ld free=%lu maxlen=%lu mesh_packet_id=%lu", (long)fr.queueStatus.res,
                (unsigned long)fr.queueStatus.free, (unsigned long)fr.queueStatus.maxlen,
                (unsigned long)fr.queueStatus.mesh_packet_id);

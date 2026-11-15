@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include "historial.h"
+#include "nodos.h"
 #include "src/mtpb/mesh.pb.h"
 #include "src/mtpb/telemetry.pb.h"
 
@@ -27,6 +28,7 @@ struct DatosTracker {
   bool tieneFirmware = false;
   char firmware[18] = "";
   uint16_t nodosEnDb = 0;          // NodeInfo recibidos (incluye el propio)
+  ListaNodos nodos;                // otros nodos: nombre corto, saltos, ultima vez oido (sin posicion)
 
   // DeviceMetrics (NodeInfo propio o TELEMETRY_APP)
   bool tieneBateria = false;   uint32_t bateria = 0;   // 101 = alimentado por USB (firmware)
@@ -45,6 +47,7 @@ struct DatosTracker {
   bool tieneAltitud = false;   int32_t altitud = 0;
   uint32_t satelites = 0;
   uint32_t msPosicion = 0;
+  uint32_t epochPosicion = 0;      // Position.time (hora del fix segun el GPS), 0 = desconocida
 
   // EnvironmentMetrics (TELEMETRY_APP; en el T1000-E: NTC y sensor de luz)
   bool tieneTemperatura = false; float temperatura = 0;
@@ -77,6 +80,13 @@ struct DatosTracker {
   uint32_t routingFrom = 0;
   int routingError = 0;            // meshtastic_Routing_Error
   uint32_t routingContador = 0;    // sube con cada Routing nuevo
+
+  // Ultimo QueueStatus: el nodo responde asi a cada paquete que le escribimos en
+  // ToRadio (res=0 = aceptado en la cola; mesh_packet_id = id que le asigno).
+  bool tieneQueueStatus = false;
+  int32_t qsRes = 0;
+  uint32_t qsPacketId = 0;
+  uint32_t qsContador = 0;         // sube con cada QueueStatus
 
   bool cambio = false;   // la pantalla debe redibujar los datos
 };

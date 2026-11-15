@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "compartido.h"
+#include "vitales.h"
 
 enum class Modo : uint8_t { MENU, DENTRO, SOS };
 
@@ -19,7 +20,14 @@ void dibujarTodo(int pestana, Modo modo, const char* evento);   // borra y dibuj
 void cambioDePestana(int pestana, Modo modo);              // pestanas + contenido nuevo
 void pie(const char* evento);
 // Refresca la pestana actual y el indicador BLE desde una copia de los datos.
-void actualizar(int pestana, Modo modo, const Compartido& c, uint32_t ahora);
+void actualizar(int pestana, Modo modo, const Compartido& c, const DatosVitales& v, uint32_t ahora);
+
+// TRACK: dentro de la pestana, NEGRO/BLANCO cambian de pagina en la lista de nodos.
+void moverPaginaTrack(int delta);
+void reiniciarPaginaTrack();
+// MENS: dentro de la pestana, NEGRO/BLANCO mueven el cursor de los mensajes predeterminados.
+void moverCursorMens(int delta);
+const char* mensajeSeleccionado();
 
 void barraSos(float progreso);   // 0..1
 void borrarBarraSos();

@@ -1,9 +1,11 @@
 // dinopad_pipboy: menu de 5 pestanas con los 3 botones y datos del T1000-E por BLE.
 //
-//   NEGRO            pestana anterior
-//   BLANCO           pestana siguiente
+//   NEGRO            pestana anterior   (dentro de TRACK: pagina anterior de nodos)
+//   BLANCO           pestana siguiente  (dentro de TRACK: pagina siguiente de nodos)
 //   ROJO corto       entrar a la pestana (seleccionar)
 //   ROJO largo       volver (salir de la pestana / cerrar SOS)
+//   Dentro de MENS: NEGRO/BLANCO eligen un mensaje predeterminado y ROJO corto lo
+//   envia por el T1000-E (broadcast, canal primario) si ENVIAR_MENSAJE = true.
 //   NEGRO + BLANCO   SOS, sostenidos 3 s (solo pantalla: NO envia nada)
 //
 // Arquitectura:
@@ -12,21 +14,33 @@
 //   datos_tracker.* decodificador FromRadio con Nanopb (src/mtpb, generado)
 //   ui.*            dibujo; redibuja solo los campos que cambian
 //   botones.*       logica de botones (probada en la PC: test/verificar_botones.sh)
-// El bucle de botones nunca espera al BLE. Sin Wi-Fi. No envia nada por radio ni
-// cambia la configuracion del tracker.
+// El bucle de botones nunca espera al BLE. Sin Wi-Fi. No cambia la configuracion del
+// tracker. Lo unico que sale por radio son los mensajes de MENS (ver ENVIAR_MENSAJE).
 //
 // Compilar con: --libraries firmware/libraries   (pines.h)
 // Antes, una vez: firmware/ble_send/tools/generar_nanopb.sh  (genera src/mtpb)
 
+#include <Preferences.h>
 #include <pines.h>
 
 #include "botones.h"
 #include "compartido.h"
 #include "conexion_ble.h"
+#include "demo.h"
+#include "simulador_vital.h"
+#include "vitales.h"
 #include "ui.h"
 
-// Nunca se envian mensajes desde este sketch (no hay codigo de envio).
+// true: MENS envia de verdad por el T1000-E (broadcast en el canal primario, PUBLICO).
+// Limites para no llenar la red: el script de demo manda UN mensaje por firmware
+// subido (se recuerda en NVS, sobrevive reinicios), y con botones hay que esperar
+// ENVIO_PAUSA_MS entre envios.
 static const bool ENVIAR_MENSAJE = false;
+static const uint32_t ENVIO_PAUSA_MS = 30000;
+static const char* const ID_FIRMWARE = __DATE__ " " __TIME__;   // cambia con cada compilacion
+
+// true: recorre el menu solo (demo.h), para placas sin botones.
+static const bool DEMO_AUTOMATICO = true;
 
 static const uint32_t REFRESCO_MS = 250;   // cada cuanto se copia el estado compartido
 
@@ -38,13 +52,71 @@ static int pestana = P_ESTADO;
 static bool barraSosVisible = false;
 static uint32_t ultimaBarraMs = 0;
 static uint32_t ultimoRefresco = 0;
+static Demo demo;
+static uint32_t ultimoEnvioMs = 0;
+static bool huboEnvio = false;
+static EstadoEnvio envioMostrado = EstadoEnvio::NINGUNO;
+static SimuladorVital simulador;   // BPM/SpO2 DEMO: cambiar por el MAX30102 (simulador_vital.h)
+static DatosVitales vitales;
 static Compartido copia;   // ~1 KB: global, no en la pila de loop()
 
 static const char* nombreModo(Modo m) {
   return m == Modo::MENU ? "MENU" : m == Modo::DENTRO ? "DENTRO" : "SOS";
 }
 
-static void manejar(Evento e) {
+// true si el script de demo ya mando su mensaje con este firmware (NVS)
+static bool demoYaEnvio() {
+  Preferences p;
+  p.begin("dinopad", true);
+  String hecho = p.getString("demoEnvio", "");
+  p.end();
+  return hecho == ID_FIRMWARE;
+}
+
+static void marcarDemoEnvio() {
+  Preferences p;
+  p.begin("dinopad", false);
+  p.putString("demoEnvio", ID_FIRMWARE);
+  p.end();
+}
+
+// Pide a la tarea BLE que envie el mensaje seleccionado. Devuelve el texto del pie.
+static const char* pedirEnvio(bool desdeDemo, char* t, size_t n) {
+  const char* msg = ui::mensajeSeleccionado();
+  if (!ENVIAR_MENSAJE) { snprintf(t, n, "NO ENVIADO (ENVIAR=false): %s", msg); return t; }
+  if (desdeDemo && demoYaEnvio()) {
+    snprintf(t, n, "DEMO: ya se envio uno con este firmware");
+    return t;
+  }
+  if (huboEnvio && millis() - ultimoEnvioMs < ENVIO_PAUSA_MS) {
+    snprintf(t, n, "Espera %lus para otro envio",
+             (unsigned long)((ENVIO_PAUSA_MS - (millis() - ultimoEnvioMs)) / 1000 + 1));
+    return t;
+  }
+  compartidoBloquear();
+  Compartido& c = compartidoRef();
+  bool conectado = c.estado == EstadoBle::CONECTADO;
+  bool ocupado = c.envio == EstadoEnvio::PEDIDO || c.envio == EstadoEnvio::ESCRITO;
+  if (conectado && !ocupado) {
+    snprintf(c.envioTexto, sizeof c.envioTexto, "%s", msg);
+    c.envio = EstadoEnvio::PEDIDO;
+    c.envioId = 0;
+    c.envioMs = millis();
+    c.version++;
+  }
+  compartidoSoltar();
+  if (!conectado) { snprintf(t, n, "NO ENVIADO: BLE no conectado"); return t; }
+  if (ocupado) { snprintf(t, n, "NO ENVIADO: hay otro envio en curso"); return t; }
+  huboEnvio = true;
+  ultimoEnvioMs = millis();
+  if (desdeDemo) marcarDemoEnvio();   // antes de enviar: si se reinicia, no repite
+  Serial.printf("    MENS: envio pedido \"%s\" (broadcast, canal primario)%s\n", msg,
+                desdeDemo ? " [script de demo]" : "");
+  snprintf(t, n, "ENVIANDO: %s", msg);
+  return t;
+}
+
+static void manejar(Evento e, bool desdeDemo = false) {
   const char* nombre = nombreEvento(e);
   Serial.printf("[%lu ms] %s  (modo=%s, pestana=%s)\n", (unsigned long)millis(), nombre,
                 nombreModo(modo), NOMBRES_PESTANA[pestana]);
@@ -71,13 +143,30 @@ static void manejar(Evento e) {
     case Modo::MENU:
       if (e == Evento::ANTERIOR) pestana = (pestana + N_PESTANAS - 1) % N_PESTANAS;
       else if (e == Evento::SIGUIENTE) pestana = (pestana + 1) % N_PESTANAS;
+      if (e == Evento::ANTERIOR || e == Evento::SIGUIENTE) ui::reiniciarPaginaTrack();
       else if (e == Evento::SELECCIONAR) modo = Modo::DENTRO;
       else if (e == Evento::VOLVER) { ui::pie("VOLVER (ya en el menu)"); return; }
       break;
 
     case Modo::DENTRO:
       if (e == Evento::VOLVER) modo = Modo::MENU;
-      else {
+      else if (pestana == P_TRACK && (e == Evento::ANTERIOR || e == Evento::SIGUIENTE)) {
+        ui::moverPaginaTrack(e == Evento::SIGUIENTE ? 1 : -1);   // pagina de la lista de nodos
+        ui::pie(e == Evento::SIGUIENTE ? "pagina siguiente" : "pagina anterior");
+        ultimoRefresco = 0;
+        return;
+      } else if (pestana == P_MENS && (e == Evento::ANTERIOR || e == Evento::SIGUIENTE)) {
+        ui::moverCursorMens(e == Evento::SIGUIENTE ? 1 : -1);
+        ui::pie(ui::mensajeSeleccionado());
+        ultimoRefresco = 0;
+        return;
+      } else if (pestana == P_MENS && e == Evento::SELECCIONAR) {
+        char t[64];
+        const char* r = pedirEnvio(desdeDemo, t, sizeof t);
+        Serial.printf("    MENS: %s\n", r);
+        ui::pie(r);
+        return;
+      } else {
         char t[48];
         snprintf(t, sizeof t, "%s (sin accion aqui todavia)", nombre);
         ui::pie(t);
@@ -96,8 +185,8 @@ void setup() {
   Serial.println("\n===== dinopad_pipboy =====");
   Serial.printf("Botones: NEGRO=%u BLANCO=%u ROJO=%u (INPUT_PULLUP, presionado=LOW)\n",
                 PIN_BTN_NEGRO, PIN_BTN_BLANCO, PIN_BTN_ROJO);
-  Serial.printf("ENVIAR_MENSAJE=%s (este sketch no tiene codigo de envio)\n",
-                ENVIAR_MENSAJE ? "true" : "false");
+  Serial.printf("ENVIAR_MENSAJE=%s  firmware=%s  demo ya envio: %s\n", ENVIAR_MENSAJE ? "true" : "false",
+                ID_FIRMWARE, demoYaEnvio() ? "si" : "no");
 
   pinMode(PIN_BTN_NEGRO, INPUT_PULLUP);
   pinMode(PIN_BTN_BLANCO, INPUT_PULLUP);
@@ -108,6 +197,9 @@ void setup() {
 
   compartidoIniciar();
   bleIniciar();   // tarea BLE en el nucleo 0
+
+  Serial.printf("DEMO_AUTOMATICO=%s\n", DEMO_AUTOMATICO ? "true (recorre el menu solo)" : "false");
+  demo.empezarEn(millis() + 3000);   // 3 s en el menu antes de empezar
 }
 
 void loop() {
@@ -115,6 +207,10 @@ void loop() {
   botones.actualizar(!digitalRead(PIN_BTN_NEGRO), !digitalRead(PIN_BTN_BLANCO),
                      !digitalRead(PIN_BTN_ROJO), ahora);
   for (Evento e; (e = botones.siguienteEvento()) != Evento::NINGUNO;) manejar(e);
+  if (DEMO_AUTOMATICO) {
+    Evento e = demo.siguiente(ahora);
+    if (e != Evento::NINGUNO) { Serial.print("[DEMO] "); manejar(e, true); }
+  }
 
   // Barra de progreso mientras se sostiene NEGRO + BLANCO
   if (modo != Modo::SOS) {
@@ -131,11 +227,24 @@ void loop() {
     }
   }
 
+  // Signos vitales (simulados): una muestra cada 2 s
+  MuestraVital mv;
+  if (simulador.leer(ahora, mv)) vitales.historial.agregar(mv);
+
   // Datos del tracker: copia del estado compartido y redibujo de lo que cambio
   if (ahora - ultimoRefresco >= REFRESCO_MS) {
     ultimoRefresco = ahora;
     compartidoCopiar(copia);
-    ui::actualizar(pestana, modo, copia, ahora);
+    ui::actualizar(pestana, modo, copia, vitales, ahora);
+    // Avance del envio (lo lleva la tarea BLE): mostrarlo en el pie
+    if (copia.envio != envioMostrado && modo != Modo::SOS) {
+      envioMostrado = copia.envio;
+      if (copia.envio != EstadoEnvio::NINGUNO && copia.envio != EstadoEnvio::PEDIDO) {
+        char t[64];
+        snprintf(t, sizeof t, "%s: %s", nombreEstadoEnvio(copia.envio), copia.envioTexto);
+        ui::pie(t);
+      }
+    }
   }
   delay(2);
 }

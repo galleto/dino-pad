@@ -8,7 +8,7 @@ ILI9341 de 2.8" y conexión BLE a un SenseCAP Card Tracker T1000-E con Meshtasti
 | `ble_send/` | Se conecta por BLE al T1000-E con PIN, lee su configuración y telemetría (Nanopb) y las muestra en la pantalla. Con `ENVIAR_MENSAJE = true` manda **un** mensaje de texto por broadcast. |
 | `ble_scan/` | Escáner BLE: lista los nodos Meshtastic cercanos (sin repetidos) y marca el T1000-E objetivo. |
 | `dinopad/` | Panel de telemetría por Wi-Fi + MQTT, con tres botones (ping, sensores simulados, SOS). |
-| `dinopad_pipboy/` | Menú de 5 pestañas con los 3 botones y datos del T1000-E por BLE (en desarrollo por etapas; ver abajo). Sin Wi-Fi, no envía nada. |
+| `dinopad_pipboy/` | Menú de 5 pestañas con los 3 botones y datos del T1000-E por BLE (5 etapas; ver abajo). Sin Wi-Fi; solo envía por radio si `ENVIAR_MENSAJE = true`. |
 | `test_ble_minimo/` | Solo `NimBLEDevice::init()` e imprime "BLE OK": para ver si una placa aguanta encender el BLE (brownout). |
 | `test_botones/` | Encuentra a qué GPIO está soldado cada botón (muestra "GPIO n" al presionar). |
 | `test_rotacion/`, `test_geometria/`, `test_madctl/` | Pruebas de la pantalla que se usaron para encontrar la orientación correcta. |
@@ -138,8 +138,8 @@ Notas:
 
 | Botón | Acción |
 |---|---|
-| NEGRO | pestaña anterior (al soltar) |
-| BLANCO | pestaña siguiente (al soltar) |
+| NEGRO | pestaña anterior (al soltar); dentro de TRACK: página anterior; dentro de MENS: mensaje anterior |
+| BLANCO | pestaña siguiente (al soltar); dentro de TRACK: página siguiente; dentro de MENS: mensaje siguiente |
 | ROJO corto | entrar a la pestaña |
 | ROJO largo (0.8 s) | volver / cerrar SOS |
 | NEGRO + BLANCO 3 s | pantalla de SOS (**solo pantalla, no envía nada**) |
@@ -149,10 +149,19 @@ Pestañas: ESTADO, AMBIENTE, TRACK, VITAL, MENS. Etapas:
 | Etapa | Pestaña | Estado |
 |---|---|---|
 | 1 | ESTADO: conexión, RSSI, batería, voltaje, uso de canal, uptime (con colores y antigüedad; gris si es viejo) + reconexión automática | hecha; probada en `82:a4`: llega a CONECTADO |
-| 2 | AMBIENTE: "TEMP AMBIENTE" y luz (0-100), cada una con valor, antigüedad y gráfica de los últimos 30 min (historial de 60 muestras) | hecha, compilada; sin subir |
-| 3 | TRACK: posición propia y lista de nodos | pendiente |
-| 4 | VITAL: BPM/SpO2 simulados ("DEMO") | pendiente |
-| 5 | MENS: mensajes recibidos | pendiente |
+| 2 | AMBIENTE: "TEMP AMBIENTE" y luz (0-100), cada una con valor, antigüedad y gráfica de los últimos 30 min (historial de 60 muestras) | hecha; vista en placa |
+| 3 | TRACK: posición propia (lat/lon, sats, altitud, antigüedad) con rótulo **GPS**; sin fix, coordenadas **DEMO** (letrero amarillo) de la base en el cráter Jezero (Marte) y 2 tripulantes simulados, todo en `posicion_demo.h`; lista de nodos (nombre corto, id, saltos, hace cuánto se oyó, MQTT) en páginas de 8, ordenada por el más reciente. **No guarda ni muestra la posición de otros nodos** | hecha; DEMO de Jezero compilada, sin subir |
+| 4 | VITAL: BPM y SpO2 **simulados** (aviso "DEMO" amarillo), número con semáforo NORMAL / ATENCION / CRITICO con los rangos de `backend/data/crew.json`, y gráfica de 2 min con los límites del rango normal. Simulador en `simulador_vital.h`, listo para cambiarlo por el MAX30102 | hecha; vista en placa |
+| 5 | MENS: 8 mensajes predeterminados (`mensajes.h`); dentro, NEGRO/BLANCO eligen y ROJO corto lo envía por el T1000-E (broadcast, canal primario, con seguimiento de cola y ACK) **solo si `ENVIAR_MENSAJE = true`**; queda en `false` | hecha; envío real probado una vez con ACK |
+
+Sin botones: con `DEMO_AUTOMATICO = true` (en `dinopad_pipboy.ino`) el menú se recorre
+solo siguiendo `demo.h`; ponlo en `false` cuando la placa tenga botones.
+
+Pruebas en la PC (solo g++): `test/verificar_botones.sh`, `test/verificar_historial.sh`,
+`test/verificar_nodos.sh`, `test/verificar_vitales.sh` y `test/verificar_posicion.sh`.
+
+Con `ENVIAR_MENSAJE = true`, el script de demo envía "Estoy bien" una sola vez por firmware
+subido (se recuerda en NVS) y con botones hay 30 s mínimo entre envíos.
 
 Arquitectura: la conexión BLE (`conexion_ble.*`) corre en una tarea FreeRTOS en el
 núcleo 0 y escribe en una estructura compartida con mutex (`compartido.*`); el
