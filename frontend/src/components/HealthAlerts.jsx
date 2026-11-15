@@ -1,6 +1,7 @@
 import { INDICATORS } from '../data/crewData';
 import { getRanges } from '../services/health';
 import { sourceLabel } from '../services/readings';
+import Term from './Term';
 
 export default function HealthAlerts({ alerts, crewById = {}, latest = {}, compact = false, onSpeak, voiceSupported = false }) {
   if (!alerts.length) return <div className="empty-state">Sin alertas prioritarias. Todo en calma por ahora.</div>;
@@ -14,7 +15,7 @@ export default function HealthAlerts({ alerts, crewById = {}, latest = {}, compa
         return (
           <article className={`alert-card alert-${alert.level}`} key={alert.id}>
             <div className="alert-card-head"><span className={`alert-level level-${alert.level}`}>{alert.level === 'critical' ? 'CRÍTICA' : alert.level === 'warning' ? 'ATENCIÓN' : 'INFORMACIÓN'}</span><time>{timestamp}</time></div>
-            <h3>{alert.title || 'Alerta de salud'}</h3>
+            <h3>{indicator ? <Term id={indicator.id}>{indicator.name}</Term> : alert.title || 'Alerta de salud'}</h3>
             <p>{alert.message || 'Se recibió una alerta desde el dispositivo.'}</p>
             {voiceSupported && onSpeak && <button className="button alert-speak" type="button" onClick={() => onSpeak(alert)} aria-label={`Escuchar alerta: ${alert.title || 'alerta de salud'}`}>▶ Escuchar alerta</button>}
             {!compact && <div className="alert-detail"><strong>¿Por qué se generó?</strong><p>{reading?.value != null && range ? `${reading.value} ${indicator.unit} frente al rango normal ${range[0]}–${range[1]} ${indicator.unit}.` : alert.message || 'El dispositivo informó una condición que requiere atención.'}</p>{reading && <small className="reading-origin">Origen de lectura: {sourceLabel(reading.source)}</small>}</div>}

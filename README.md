@@ -76,20 +76,23 @@ dino-pad/
 │   ├── mqtt_client.py
 │   ├── rules.py
 │   ├── gemini_service.py
+│   ├── assistant_service.py
+│   ├── backboard_service.py
+│   ├── prompts/assistant_system_prompt.txt
 │   ├── websocket_manager.py
 │   ├── requirements.txt
 │   ├── .env.example
 │   ├── data/crew.json
 │   ├── simulator/
-│   └── tests/
+│   └── tests/test_assistant.py
 ├── frontend/
 │   ├── src/
 │   │   ├── App.jsx
 │   │   ├── main.jsx
-│   │   ├── components/
-│   │   ├── data/crewData.js
-│   │   ├── hooks/
-│   │   ├── services/
+│   │   ├── components/AssistantPanel.jsx, Term.jsx, VisualRenderer.jsx
+│   │   ├── data/crewData.js, glossary.js
+│   │   ├── hooks/DataContext.jsx, useAssistant.jsx
+│   │   ├── services/assistant.js
 │   │   └── styles/
 │   ├── public/
 │   ├── index.html
@@ -137,6 +140,27 @@ dino-pad/
 - `DataProvider` en `hooks/DataContext.jsx` centraliza tripulación, lecturas, historial, alertas, conexión y preferencias. Comprueba el backend, conecta WebSockets cuando está disponible y activa `services/simulator.js` si no puede conectarse. Guarda una caché acotada en `localStorage`.
 - `App.jsx` define navegación por hash y estado general de la aplicación. `components/Pages.jsx` implementa monitoreo, alertas, historial, tendencias, tripulación, riesgos, emergencia y laboratorio; `VitalMetrics.jsx` y `BodyViewer3D.jsx` forman parte de la vista de monitoreo.
 - `services/health.js` interpreta rangos, tendencias y alertas en el navegador. `services/api.js` consume los endpoints REST y determina la dirección de WebSocket.
+
+### Asistente educativo contextual
+
+- Los términos con explicación se muestran en las pantallas mediante `components/Term.jsx`. Sus definiciones locales y los diagramas de respaldo están en `data/glossary.js`; el botón flotante o el atajo `Alt+Shift+A` abre el panel.
+- `hooks/useAssistant.jsx` reúne página, tripulante activo, lecturas visibles, estado, alertas y término seleccionado. Mantiene hasta 24 mensajes y 30 conceptos por tripulante en `localStorage`. El rango normal mostrado por los términos se obtiene de `crewData.js` mediante `services/health.js`.
+- Cuando el backend está disponible, `services/assistant.js` envía la consulta a `POST /api/assistant`. Gemini se configura solo en el backend con `GEMINI_APIKEY` y `GEMINI_MODEL`; el prompt editable y las reglas de seguridad están en `backend/prompts/assistant_system_prompt.txt`. Los visuales se validan y dibujan con componentes propios, sin ejecutar HTML generado.
+- Backboard es opcional: configura `BACKBOARD_API_KEY` en el `.env` del backend para guardar conceptos educativos por tripulante. Si no está configurado o falla, el glosario y la memoria local siguen disponibles. No se envían lecturas numéricas a Backboard. Las preguntas y el contexto de pantalla sí se envían al backend/Gemini cuando se usa la IA.
+- En modo sin conexión, los términos conservan definiciones locales y el asistente ofrece una respuesta de respaldo. Las respuestas no usan streaming; Gemini devuelve el resultado completo.
+
+Para probar el endpoint, configura `GEMINI_APIKEY` en el `.env` del backend, inicia el backend y el frontend como se describe arriba, y pulsa un término subrayado. Para probar el modo local, inicia el frontend sin el backend. Las pruebas relacionadas con el asistente se ejecutan desde `dino-pad`:
+
+```powershell
+python -m unittest backend.tests.test_assistant
+```
+
+La validación de la interfaz se ejecuta desde `frontend`:
+
+```powershell
+npm run lint
+npm run build
+```
 
 ### Firmware
 

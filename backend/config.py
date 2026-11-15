@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     )
     gemini_model: str = "gemini-2.5-flash"
 
+    # Backboard persistent assistant memory
+    backboard_api_key: str = ""
+
     # MQTT Broker
     mqtt_host: str = "localhost"
     mqtt_port: int = 1883
@@ -54,6 +57,7 @@ class Settings(BaseSettings):
             "has_mqtt_auth": bool(self.mqtt_user and self.mqtt_password),
             "gemini_model": self.gemini_model,
             "has_gemini_key": bool(self.gemini_apikey),
+            "has_backboard_key": bool(self.backboard_api_key),
             "has_database_url": bool(self.effective_database_url),
             "node_env": self.node_env,
         }

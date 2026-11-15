@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import sys
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
@@ -10,7 +11,7 @@ from typing import Optional
 BACKEND_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BACKEND_DIR.parent))
 
-from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
@@ -26,10 +27,11 @@ from backend.db import (
     get_vitals_history,
     get_alerts,
 )
-from backend.models import VitalReading, AlertMessage, DeviceStatus
+from backend.models import AssistantRequest, AssistantResponse, VitalReading, AlertMessage, DeviceStatus
 from backend.mqtt_client import mqtt_service
 from backend.rules import evaluate_reading, evaluate_alert_message
-from backend.gemini_service import explain_alert_background
+from backend.gemini_service import AssistantGenerationError, explain_alert_background
+from backend.assistant_service import generate_assistant_response
 from backend.websocket_manager import ws_manager
 
 CREW_JSON_PATH = BACKEND_DIR / "data" / "crew.json"
@@ -42,6 +44,9 @@ logging.basicConfig(
 logger = logging.getLogger("dinopad.main")
 
 _main_loop: Optional[asyncio.AbstractEventLoop] = None
+_assistant_request_times: dict[str, list[float]] = {}
+_ASSISTANT_RATE_WINDOW_SECONDS = 60
+_ASSISTANT_RATE_LIMIT = 10
 
 
 def _dispatch_ai_if_needed(alert_dict: dict):
@@ -78,6 +83,20 @@ def handle_incoming_alert_msg(msg: AlertMessage):
         save_alert(alert)
         ws_manager.broadcast_alert_threadsafe(alert)
         _dispatch_ai_if_needed(alert)
+
+
+def _check_assistant_rate_limit(client_key: str) -> bool:
+    now = time.monotonic()
+    recent = [stamp for stamp in _assistant_request_times.get(client_key, []) if now - stamp < _ASSISTANT_RATE_WINDOW_SECONDS]
+    if len(recent) >= _ASSISTANT_RATE_LIMIT:
+        _assistant_request_times[client_key] = recent
+        return False
+    recent.append(now)
+    _assistant_request_times[client_key] = recent
+    if len(_assistant_request_times) > 512:
+        oldest_key = min(_assistant_request_times, key=lambda key: max(_assistant_request_times[key], default=0))
+        _assistant_request_times.pop(oldest_key, None)
+    return True
 
 
 @asynccontextmanager
@@ -183,6 +202,25 @@ def api_alerts(
 ):
     """Devuelve la lista de alertas recientes con su estado, título, mensaje, acción y explicación de IA."""
     return get_alerts(crewId, limit)
+
+
+@app.post("/api/assistant", response_model=AssistantResponse, tags=["Asistente"])
+async def api_educational_assistant(payload: AssistantRequest, request: Request):
+    """Genera una explicación educativa contextual y usa Backboard si está configurado."""
+    client_key = request.client.host if request.client else "unknown"
+    if not _check_assistant_rate_limit(client_key):
+        raise HTTPException(
+            status_code=429,
+            detail="Límite del asistente alcanzado. Inténtalo de nuevo en un minuto.",
+            headers={"Retry-After": str(_ASSISTANT_RATE_WINDOW_SECONDS)},
+        )
+    try:
+        return await generate_assistant_response(payload)
+    except AssistantGenerationError as error:
+        status_code = 503 if "no está configurada" in str(error) else 502
+        raise HTTPException(status_code=status_code, detail=str(error)) from error
+    except asyncio.TimeoutError as error:
+        raise HTTPException(status_code=504, detail="El asistente tardó demasiado en responder.") from error
 
 
 @app.get("/", tags=["Root"])

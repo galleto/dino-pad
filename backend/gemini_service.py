@@ -1,11 +1,17 @@
 import asyncio
+import json
 import logging
 import time
 from typing import Dict, Optional
 
 from google import genai
+from google.genai import errors as genai_errors
+from google.genai import types
+from pydantic import ValidationError
+
 from backend.config import settings
 from backend.db import get_latest_vitals, update_alert_ai
+from backend.models import GeneratedAssistantResponse
 from backend.websocket_manager import ws_manager
 
 logger = logging.getLogger("dinopad.gemini")
@@ -13,6 +19,52 @@ logger = logging.getLogger("dinopad.gemini")
 # Rate limit de Gemini: máximo 1 llamada por tripulante cada 30 segundos
 _last_gemini_call: Dict[str, float] = {}
 GEMINI_COOLDOWN_SECONDS = 30.0
+
+
+class AssistantGenerationError(RuntimeError):
+    pass
+
+
+def parse_assistant_response(raw: str) -> GeneratedAssistantResponse:
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as error:
+        raise AssistantGenerationError("Gemini devolvió JSON inválido.") from error
+    if not isinstance(payload, dict) or not isinstance(payload.get("answer"), str) or not payload["answer"].strip():
+        raise AssistantGenerationError("Gemini no devolvió una respuesta educativa válida.")
+
+    answer = payload["answer"].strip()[:900]
+    try:
+        return GeneratedAssistantResponse.model_validate({**payload, "answer": answer})
+    except ValidationError:
+        logger.warning("[ASISTENTE] Visual o campos auxiliares inválidos; se conserva solo el texto.")
+        return GeneratedAssistantResponse(answer=answer)
+
+
+def generate_educational_content(prompt: str) -> GeneratedAssistantResponse:
+    if not settings.gemini_apikey:
+        raise AssistantGenerationError("GEMINI_APIKEY no está configurada.")
+
+    client = genai.Client(
+        api_key=settings.gemini_apikey,
+        http_options={"timeout": 10000},
+    )
+    try:
+        response = client.models.generate_content(
+            model=settings.gemini_model,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.3,
+            ),
+        )
+    except genai_errors.APIError as error:
+        raise AssistantGenerationError("Gemini no pudo completar la explicación.") from error
+
+    if not response or not response.text:
+        raise AssistantGenerationError("Gemini no devolvió contenido.")
+    return parse_assistant_response(response.text)
+
 
 # Mock para pruebas unitarias automatizadas (evita gastar cuota)
 _mock_gemini_func = None

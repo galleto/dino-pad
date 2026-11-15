@@ -2,6 +2,8 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import { DataProvider } from './hooks/DataContext.jsx'
+import { AssistantProvider } from './hooks/useAssistant.jsx'
+import AssistantPanel from './components/AssistantPanel.jsx'
 
 function notifyPwa(type) {
   window.dispatchEvent(new CustomEvent(`dinopad-${type}`))
@@ -63,7 +65,10 @@ if (import.meta.env.PROD) {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <DataProvider>
-      <App />
+      <AssistantProvider>
+        <App />
+        <AssistantPanel />
+      </AssistantProvider>
     </DataProvider>
   </StrictMode>,
 )

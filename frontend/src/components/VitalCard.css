@@ -18,9 +18,11 @@
 .vc-crit { border-color: #f26b6b80; }
 .vc-selected { border-color: var(--accent); background: var(--panel-hi); }
 
+.vc-head-row { display: flex; align-items: flex-start; }
 .vc-head {
   display: block;
-  width: 100%;
+  min-width: 0;
+  flex: 1;
   padding: 14px 16px;
   border: 0;
   background: transparent;

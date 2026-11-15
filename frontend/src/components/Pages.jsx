@@ -8,6 +8,7 @@ import { sourceLabel } from '../services/readings';
 import { api } from '../services/api';
 import HealthAlerts from './HealthAlerts';
 import VitalMetrics from './VitalMetrics';
+import Term from './Term';
 
 function usePageData() {
   const data = useConnection();
@@ -124,6 +125,7 @@ export function HistoryPage() {
           <label>Cantidad<select value={limit} onChange={(event) => setLimit(Number(event.target.value))}>{[30, 60, 100, 200, 500].map((amount) => <option key={amount} value={amount}>{amount} lecturas</option>)}</select></label>
           <span className="tag">{connectionState === 'live' ? 'EN VIVO' : 'DATOS DISPONIBLES'}</span>
         </div>
+        {indicator && <p className="assistant-indicator-caption">Concepto: <Term id={indicator.id}>{indicator.name}</Term></p>}
         {error.key === requestKey && error.message && <p className="inline-error" role="status">{error.message}</p>}
         {indicator && person ? <HistoryChart readings={readings} indicator={indicator} crew={person} /> : <div className="empty-state">Faltan datos de tripulación o indicador.</div>}
         <div className="history-summary"><span>Última lectura <strong>{readings.at(-1)?.value ?? '—'} {readings.length ? `${indicator?.unit} · ${sourceLabel(readings.at(-1)?.source)}` : ''}</strong></span><span>Actualizado <strong>{readings.at(-1) ? new Date(timestampValue(readings.at(-1))).toLocaleString('es') : 'Sin datos'}</strong></span></div>
@@ -199,7 +201,7 @@ export function TrendsPage() {
   }, [data.history, data.activeCrewId, data.indicators, indicatorId]);
   return (
     <div className="page-grid">
-      <div className="section-heading"><div><span className="eyebrow">ANÁLISIS DE CAMBIO</span><h2>Tendencias de la tripulación</h2><p>Regresión lineal sobre hasta 60 lecturas válidas; no es una predicción clínica.</p></div><label className="compact-field">Indicador<select value={indicatorId} onChange={(event) => setIndicatorId(event.target.value)}>{Object.values(data.indicators).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></div>
+      <div className="section-heading"><div><span className="eyebrow">ANÁLISIS DE CAMBIO</span><h2>Tendencias de la tripulación</h2><p>Regresión lineal sobre hasta 60 lecturas válidas; no es una predicción clínica.</p>{indicator && <p className="assistant-indicator-caption">Indicador: <Term id={indicator.id}>{indicator.name}</Term></p>}</div><label className="compact-field">Indicador<select value={indicatorId} onChange={(event) => setIndicatorId(event.target.value)}>{Object.values(data.indicators).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></div>
       <div className="trend-grid">{cards.map(({ person, valid, source, baseline, change, direction, confidence }) => <article className="panel trend-card" key={person.id}><div className="trend-card-head"><span className="crew-initial">{person.name.slice(0, 1)}</span><div><h3>{person.name}</h3><small>{person.role}</small></div><span className={`trend-direction trend-${direction}`}>{direction.toUpperCase()}</span></div><div className="trend-value">{valid.at(-1) ?? '—'} <small>{indicator?.unit || ''} · {sourceLabel(source)}</small></div><p>{valid.length < 4 ? 'Aún no hay suficientes lecturas consecutivas para estimar una tendencia.' : direction === 'estable' ? 'La pendiente reciente no muestra un cambio progresivo claro frente a su variabilidad.' : `La regresión estima un cambio de ${change > 0 ? '+' : ''}${change.toFixed(2)} ${indicator?.unit || ''} en ${valid.length} lecturas.`}</p><div className="trend-meta"><span>BASE PERSONAL <strong>{Number.isFinite(baseline) ? baseline : '—'}</strong></span><span>CONFIANZA <strong>{confidence.toUpperCase()}</strong></span><span>LECTURAS <strong>{valid.length}</strong></span></div><div className="confidence-track"><i style={{ width: `${confidence === 'alta' ? 100 : confidence === 'media' ? 65 : 30}%` }} /></div></article>)}</div>
       <section className="panel relation-panel"><div className="panel-heading"><div><span className="eyebrow">ASOCIACIÓN EXPLORATORIA</span><h2>Relaciones observadas · {data.crew[data.activeCrewId]?.name || 'Tripulación'}</h2></div><span className="tag">NO IMPLICA CAUSALIDAD</span></div>{relationRows.length ? <div className="relation-list">{relationRows.map((row) => <div key={row.other.id}><span>{indicator?.name} ↔ {row.other.name}</span><strong>{row.value > 0 ? '+' : ''}{row.value.toFixed(2)}</strong><small>r de Pearson · {row.count} pares por cercanía temporal</small></div>)}</div> : <div className="empty-state">No hay suficientes lecturas emparejadas en el tiempo para estimar correlaciones. Se requieren al menos 8 pares válidos.</div>}</section>
     </div>
@@ -217,7 +219,7 @@ export function CrewPage() {
         const focusLabels = (person.focus || []).map((id) => data.indicators[id]?.name || id);
         const hazardIds = [...new Set((person.focus || []).flatMap((id) => data.indicators[id]?.hazards || []))];
         const hazardLabels = hazardIds.map((id) => HAZARDS[id] || id);
-        return <article className="panel crew-profile" key={person.id}><header><span className="crew-initial crew-profile-initial">{person.name?.slice(0, 1)}</span><div><h3>{person.name}</h3><span>{person.role}</span></div><button className={`button ${data.activeCrewId === person.id ? 'button-primary' : ''}`} onClick={() => data.setActiveCrewId(person.id)} aria-pressed={data.activeCrewId === person.id}>{data.activeCrewId === person.id ? 'ACTIVO' : 'Ver en monitoreo'}</button></header><p className="crew-mission">{person.mission || 'Sin descripción de misión.'}</p><div className="crew-baselines"><h4>Línea base individual</h4>{values.map((item) => { const ranges = getRanges(item, person); return <div key={item.id}><span>{item.name}</span><b>{person.baseline?.[item.id] ?? '—'} <small>{item.unit}</small></b><small>Rango {ranges.ok[0]}–{ranges.ok[1]}</small></div>; })}</div><div className="crew-profile-footer"><span>RIESGOS ENFOCADOS: {hazardLabels.length ? hazardLabels.join(' · ') : focusLabels.join(' · ') || 'No especificados'}</span><span>{person.accent ? <i style={{ backgroundColor: person.accent }} /> : null} ID {person.id}</span></div></article>;
+        return <article className="panel crew-profile" key={person.id}><header><span className="crew-initial crew-profile-initial">{person.name?.slice(0, 1)}</span><div><h3>{person.name}</h3><span>{person.role}</span></div><button className={`button ${data.activeCrewId === person.id ? 'button-primary' : ''}`} onClick={() => data.setActiveCrewId(person.id)} aria-pressed={data.activeCrewId === person.id}>{data.activeCrewId === person.id ? 'ACTIVO' : 'Ver en monitoreo'}</button></header><p className="crew-mission">{person.mission || 'Sin descripción de misión.'}</p><div className="crew-baselines"><h4>Línea base individual</h4>{values.map((item) => { const ranges = getRanges(item, person); return <div key={item.id}><span><Term id={item.id}>{item.name}</Term></span><b>{person.baseline?.[item.id] ?? '—'} <small>{item.unit}</small></b><small>Rango {ranges.ok[0]}–{ranges.ok[1]}</small></div>; })}</div><div className="crew-profile-footer"><span>RIESGOS ENFOCADOS: {hazardLabels.length ? hazardLabels.join(' · ') : focusLabels.join(' · ') || 'No especificados'}</span><span>{person.accent ? <i style={{ backgroundColor: person.accent }} /> : null} ID {person.id}</span></div></article>;
       })}</div> : <div className="empty-state">No se recibieron perfiles de tripulación.</div>}
     </div>
   );
@@ -232,13 +234,22 @@ const NASA_RISKS = [
   ['Termorregulación', 'Temperatura corporal estimada', ['temp']],
 ];
 
+const RISK_CONCEPTS = {
+  Cardiovascular: 'cardiovascular',
+  Sueño: 'sleep',
+  'Salud mental': 'mood',
+  Respiratorio: 'respiratory',
+  Metabólico: 'metabolic',
+  Termorregulación: 'thermoregulation',
+};
+
 export function RisksPage() {
   const { indicators } = usePageData();
   return (
     <div className="page-grid">
       <div className="validation-banner"><strong>CONTENIDO A VALIDAR CON FUENTES OFICIALES</strong><span>Resumen educativo; no sustituye protocolos médicos ni evaluación de la misión.</span></div>
       <div className="section-heading"><div><span className="eyebrow">FACTORES DE VUELO ESPACIAL</span><h2>Riesgos NASA</h2><p>Relación conceptual entre riesgos de misión e indicadores del prototipo.</p></div></div>
-      <section className="panel risk-table-wrap"><table className="risk-table"><thead><tr><th>Riesgo</th><th>Qué se monitorea</th><th>Cobertura Dinopad</th></tr></thead><tbody>{NASA_RISKS.map(([risk, measure, ids]) => <tr key={risk}><th scope="row">{risk}</th><td>{measure}</td><td>{ids.map((id) => <span className="tag risk-tag" key={id}>{indicators[id]?.name || id} · {id}</span>)}</td></tr>)}</tbody></table></section>
+      <section className="panel risk-table-wrap"><table className="risk-table"><thead><tr><th>Riesgo</th><th>Qué se monitorea</th><th>Cobertura Dinopad</th></tr></thead><tbody>{NASA_RISKS.map(([risk, measure, ids]) => <tr key={risk}><th scope="row"><Term id={RISK_CONCEPTS[risk]}>{risk}</Term></th><td><Term id={RISK_CONCEPTS[risk]}>{measure}</Term></td><td>{ids.map((id) => <span className="tag risk-tag" key={id}><Term id={id}>{indicators[id]?.name || id}</Term></span>)}</td></tr>)}</tbody></table></section>
       <div className="risk-info-grid">
         <section className="panel risk-info"><span className="eyebrow">CONTEXTO OPERATIVO</span><h3>El entorno espacial</h3><p>Las misiones pueden implicar microgravedad, exposición a radiación, aislamiento y confinamiento, retraso de comunicación con la Tierra y recursos médicos limitados. La combinación de factores y los protocolos varían según la misión.</p></section>
         <section className="panel risk-info"><span className="eyebrow">PROPUESTA</span><h3>Más que una lectura aislada</h3><p>Dinopad organiza varias señales por tripulante, las compara con rangos y líneas base, conserva datos localmente ante cortes y prioriza alertas para apoyar la revisión del equipo. No interpreta por sí solo un diagnóstico ni reemplaza la comunicación médica.</p></section>

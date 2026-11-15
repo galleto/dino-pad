@@ -1,6 +1,7 @@
 import { HAZARDS } from '../data/crewData';
 import { getRanges, getStatus, STATUS_LABEL } from '../services/health';
 import { sourceLabel, sourceTagClass } from '../services/readings';
+import Term from './Term';
 import './VitalCard.css';
 
 const CHART_COLOR = {
@@ -52,30 +53,33 @@ export default function VitalCard({ indicator, crew, reading, history = [], onSe
 
   return (
     <article className={`vc vc-${status}${selected ? ' vc-selected' : ''}`}>
-      <button
-        className="vc-head"
-        type="button"
-        onClick={onSelect}
-        aria-expanded={expanded}
-        aria-controls={detailId}
-        aria-label={`${indicator.name}: ${value} ${indicator.unit}; ${STATUS_LABEL[status]}`}
-      >
-        <span className="vc-top">
-          <span className="vc-name">{indicator.name}</span>
-          <span className={`vc-status vc-status-${status}`}>
-            <i aria-hidden="true" />
-            {STATUS_LABEL[status]}
+      <div className="vc-head-row">
+        <button
+          className="vc-head"
+          type="button"
+          onClick={onSelect}
+          aria-expanded={expanded}
+          aria-controls={detailId}
+          aria-label={`${indicator.name}: ${value} ${indicator.unit}; ${STATUS_LABEL[status]}`}
+        >
+          <span className="vc-top">
+            <span className="vc-name">{indicator.name}</span>
+            <span className={`vc-status vc-status-${status}`}>
+              <i aria-hidden="true" />
+              {STATUS_LABEL[status]}
+            </span>
           </span>
-        </span>
 
-        <span className="vc-main">
-          <span className="vc-reading">
-            <strong className="vc-value">{value}</strong>
-            <span className="vc-unit">{indicator.unit}</span>
+          <span className="vc-main">
+            <span className="vc-reading">
+              <strong className="vc-value">{value}</strong>
+              <span className="vc-unit">{indicator.unit}</span>
+            </span>
+            <MiniChart readings={history} status={status} />
           </span>
-          <MiniChart readings={history} status={status} />
-        </span>
-      </button>
+        </button>
+        <Term id={indicator.id} compact />
+      </div>
 
       {expanded && (
         <div className="vc-detail" id={detailId}>
