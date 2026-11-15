@@ -2,7 +2,6 @@
 #include "red_mqtt.h"
 
 #include <Arduino.h>
-#include <PubSubClient.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <sys/time.h>
@@ -18,12 +17,24 @@
 #define RED_ACTIVA 0
 #endif
 
+// Con BASE_URL en secretos.h: HTTPS directo al backend (POST /api/device/ingest, sin broker).
+// Sin BASE_URL y con MQTT_HOST: MQTT con TLS a un broker.
+#if RED_ACTIVA && defined(BASE_URL)
+#define MODO_HTTPS 1
+#include <HTTPClient.h>
+#else
+#define MODO_HTTPS 0
+#if RED_ACTIVA
+#include <PubSubClient.h>
+#endif
+#endif
+
 const char* nombreEstadoRed(EstadoRed e) {
   switch (e) {
     case EstadoRed::APAGADA: return "APAGADA";
     case EstadoRed::WIFI: return "WIFI";
     case EstadoRed::HORA: return "HORA";
-    case EstadoRed::BROKER: return "BROKER";
+    case EstadoRed::BROKER: return MODO_HTTPS ? "SERVIDOR" : "BROKER";
     case EstadoRed::CONECTADA: return "CONECTADA";
   }
   return "?";
@@ -68,7 +79,9 @@ static char uiEvento_[40] = "inicio";
 static bool uiDemo_ = false;
 
 static WiFiClientSecure tls_;
+#if !MODO_HTTPS
 static PubSubClient mqtt_(tls_);
+#endif
 static Compartido copiaRed_;   // ~1 KB: global, no en la pila de la tarea
 
 static void ponerEstado(EstadoRed e, const char* det) {
@@ -170,21 +183,77 @@ static bool armarEstado(char* j, size_t n) {
   return pos > 0 && (size_t)pos < n;
 }
 
+static void wifiEmpezar() {
+  if (strlen(WIFI_PASS) == 0) WiFi.begin(WIFI_SSID);
+  else WiFi.begin(WIFI_SSID, WIFI_PASS);
+}
+
+#if MODO_HTTPS
+// ---------- HTTPS: un lote cada ENVIO_MS (o ya, si hay SOS) ----------
+static const uint32_t ENVIO_MS = 3000;
+static HTTPClient http_;
+static char lote_[3400];
+
+// Agrega {"tema":"...","datos":<json>} al lote. false si ya no cabe.
+static bool agregar(size_t& pos, bool& primero, uint8_t tema, const char* json) {
+  int n = snprintf(lote_ + pos, sizeof lote_ - pos, "%s{\"tema\":\"%s\",\"datos\":%s}", primero ? "" : ",", TEMAS[tema], json);
+  if (n < 0 || pos + n >= sizeof lote_ - 4) return false;
+  pos += n;
+  primero = false;
+  return true;
+}
+
+// Devuelve el código HTTP (200 = ok, <0 = error de conexión).
+static int enviarLote(bool& incluyoSos, bool conEstado) {
+  size_t pos = snprintf(lote_, sizeof lote_, "{\"mensajes\":[");
+  bool primero = true;
+  char j[400];
+  incluyoSos = false;
+  if (sosPendiente_) {
+    snprintf(j, sizeof j, "{\"crewId\":\"%s\",\"type\":\"sos\",\"timestamp\":%llu}", CREW_ID,
+             (unsigned long long)(sosTs_ ? sosTs_ : epochMs()));
+    incluyoSos = agregar(pos, primero, T_ALERTAS, j);
+  }
+  if (conEstado && armarEstado(j, sizeof j)) agregar(pos, primero, T_ESTADO, j);
+  Mensaje m;
+  for (int k = 0; k < 10 && xQueuePeek(cola_, &m, 0) == pdTRUE; k++) {
+    if (!agregar(pos, primero, m.tema, m.json)) break;
+    xQueueReceive(cola_, &m, 0);
+  }
+  if (primero) return 200;   // nada que mandar
+  snprintf(lote_ + pos, sizeof lote_ - pos, "]}");
+  http_.setReuse(true);
+  if (!http_.begin(tls_, BASE_URL "/api/device/ingest")) return -100;
+  http_.addHeader("Content-Type", "application/json");
+  http_.addHeader("X-Device-Token", DEVICE_TOKEN);
+  int codigo = http_.POST((uint8_t*)lote_, strlen(lote_));
+  if (codigo != 200) {
+    Serial.printf("RED: POST -> %d %s\n", codigo, codigo > 0 ? http_.getString().substring(0, 120).c_str() : http_.errorToString(codigo).c_str());
+    http_.end();   // conexión nueva en el próximo intento
+  }
+  return codigo;
+}
+#endif
+
 static void tareaRed(void*) {
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(true);   // obligatorio con BLE activo (coexistencia de la radio)
-  if (strlen(WIFI_PASS) == 0) WiFi.begin(WIFI_SSID);
-  else WiFi.begin(WIFI_SSID, WIFI_PASS);
-  uint32_t inicioWifi = millis(), ultimoBroker = 0, ultimoEstado = 0, ultimoLatido = 0;
+  wifiEmpezar();
+  uint32_t inicioWifi = millis(), ultimoEnvio = 0, ultimoEstado = 0, ultimoLatido = 0;
   bool ntpPedido = false;
-  char j[400];
-
   tls_.setCACert(CA_RAIZ);
-  tls_.setHandshakeTimeout(12);
+  tls_.setHandshakeTimeout(15);
+#if MODO_HTTPS
+  http_.setTimeout(30000);   // el plan gratis de Render tarda hasta ~1 min en despertar
+  http_.setConnectTimeout(15000);
+#else
+  uint32_t ultimoBroker = 0;
+  char j[400];
   mqtt_.setServer(MQTT_HOST, MQTT_PORT);
   mqtt_.setBufferSize(512);
   mqtt_.setKeepAlive(30);
   mqtt_.setSocketTimeout(8);
+#endif
 
   for (;;) {
     uint32_t ahora = millis();
@@ -192,8 +261,7 @@ static void tareaRed(void*) {
       ponerEstado(EstadoRed::WIFI, "buscando " WIFI_SSID);
       if (ahora - inicioWifi > REINTENTO_WIFI_MS) {
         WiFi.disconnect();
-        if (strlen(WIFI_PASS) == 0) WiFi.begin(WIFI_SSID);
-        else WiFi.begin(WIFI_SSID, WIFI_PASS);
+        wifiEmpezar();
         inicioWifi = ahora;
       }
       vTaskDelay(pdMS_TO_TICKS(250));
@@ -208,6 +276,27 @@ static void tareaRed(void*) {
       vTaskDelay(pdMS_TO_TICKS(500));
       continue;
     }
+
+#if MODO_HTTPS
+    if (ultimoLatido == 0 || ahora - ultimoLatido >= UI_LATIDO_MS) { ultimoLatido = ahora; publicarUiActual(T_UI); }
+    if (sosPendiente_ || ultimoEnvio == 0 || ahora - ultimoEnvio >= ENVIO_MS) {
+      ultimoEnvio = ahora;
+      if (estado_ != EstadoRed::CONECTADA) ponerEstado(EstadoRed::BROKER, BASE_URL);
+      bool conEstado = ultimoEstado == 0 || ahora - ultimoEstado >= ESTADO_CADA_MS;
+      bool incluyoSos = false;
+      int codigo = enviarLote(incluyoSos, conEstado);
+      if (codigo == 200) {
+        if (incluyoSos) { sosPendiente_ = false; Serial.println("RED: SOS entregado al backend"); }
+        if (conEstado) ultimoEstado = ahora;
+        ponerEstado(EstadoRed::CONECTADA, BASE_URL);
+      } else {
+        char det[64];
+        snprintf(det, sizeof det, codigo == 401 ? "clave DEVICE_TOKEN incorrecta" : "servidor respondio %d", codigo);
+        ponerEstado(EstadoRed::BROKER, det);
+      }
+    }
+    vTaskDelay(pdMS_TO_TICKS(50));
+#else
     if (!mqtt_.connected()) {
       if (estado_ == EstadoRed::CONECTADA) ponerEstado(EstadoRed::BROKER, "se perdio el broker");
       else if (estado_ != EstadoRed::BROKER) ponerEstado(EstadoRed::BROKER, MQTT_HOST);
@@ -226,7 +315,6 @@ static void tareaRed(void*) {
       vTaskDelay(pdMS_TO_TICKS(200));
       continue;
     }
-
     mqtt_.loop();
     if (sosPendiente_) {
       snprintf(j, sizeof j, "{\"crewId\":\"%s\",\"type\":\"sos\",\"timestamp\":%llu}", CREW_ID,
@@ -247,6 +335,7 @@ static void tareaRed(void*) {
       publicarUiActual(T_UI);
     }
     vTaskDelay(pdMS_TO_TICKS(20));
+#endif
   }
 }
 
@@ -254,8 +343,12 @@ void redIniciar() {
   uint64_t mac = ESP.getEfuseMac();   // MAC de fabrica (no depende de que el Wi-Fi ya arranco)
   snprintf(deviceId_, sizeof deviceId_, "dinopad-%02x%02x", (unsigned)((mac >> 32) & 0xff), (unsigned)((mac >> 40) & 0xff));
   cola_ = xQueueCreate(12, sizeof(Mensaje));
-  Serial.printf("RED: %s -> %s:%d como %s (%s)\n", WIFI_SSID, MQTT_HOST, MQTT_PORT, deviceId_, CREW_ID);
+#if MODO_HTTPS
+  Serial.printf("RED: %s -> HTTPS %s como %s (%s)\n", WIFI_SSID, BASE_URL, deviceId_, CREW_ID);
+#else
+  Serial.printf("RED: %s -> MQTT %s:%d como %s (%s)\n", WIFI_SSID, MQTT_HOST, MQTT_PORT, deviceId_, CREW_ID);
+#endif
   // Nucleo 1 (el BLE va en el 0), misma prioridad que loop(): se reparten el tiempo.
-  xTaskCreatePinnedToCore(tareaRed, "red", 10240, nullptr, 1, nullptr, 1);
+  xTaskCreatePinnedToCore(tareaRed, "red", 12288, nullptr, 1, nullptr, 1);
 }
 #endif

@@ -156,15 +156,21 @@ Pestañas: ESTADO, AMBIENTE, TRACK, VITAL, MENS. Etapas:
 | 4 | VITAL: BPM y SpO2 **simulados** (aviso "DEMO" amarillo), número con semáforo NORMAL / ATENCION / CRITICO con los rangos de `backend/data/crew.json`, y gráfica de 2 min con los límites del rango normal. Simulador en `simulador_vital.h`, listo para cambiarlo por el MAX30102 | compila y pasa pruebas en PC; NO probado en la placa |
 | 5 | MENS: 8 mensajes predeterminados (`mensajes.h`); dentro, NEGRO/BLANCO eligen y ROJO corto lo envía por el T1000-E (broadcast, canal primario, con seguimiento de cola y ACK) **solo si `ENVIAR_MENSAJE = true`**; queda en `false` | compila y pasa pruebas en PC; NO probado en la placa |
 
-### Red: Wi-Fi + MQTT a la base en la nube (`red_mqtt.*`)
+### Red: Wi-Fi + envío a la base (`red_mqtt.*`)
+
+**Modo HTTPS (el que se usa):** con `BASE_URL` y `DEVICE_TOKEN` en `secretos.h`, el ESP32 manda
+lotes cada 3 s a `POST /api/device/ingest` del backend en Render (cabecera `X-Device-Token`),
+sin broker. Mientras manda datos, el plan gratis de Render no se duerme. Los mismos temas y JSON
+que MQTT (tabla de abajo). **Modo MQTT:** sin `BASE_URL` y con `MQTT_HOST`, publica en un broker
+con TLS. `ca_raiz.h` trae las raíces de Let's Encrypt, Google Trust Services y GlobalSign.
 
 1. Copia `firmware/dinopad_pipboy/secretos.ejemplo.h` como `secretos.h` y llénalo (Wi-Fi,
-   host y usuario de HiveMQ Cloud, `CREW_ID`). `secretos.h` está en `.gitignore`.
+   `BASE_URL`, `DEVICE_TOKEN` de Render, `CREW_ID`). `secretos.h` está en `.gitignore`.
 2. Compila y sube con `PartitionScheme=huge_app` (ver arriba).
 
 La red corre en su propia tarea (núcleo 1); `loop()` nunca la espera. Orden: Wi-Fi → hora por
-NTP (TLS la necesita para validar el certificado `ca_raiz.h`, ISRG Root X1) → broker. El pie de
-la pantalla y el serial dicen `RED: WIFI / HORA / BROKER / CONECTADA`.
+NTP (TLS la necesita para validar el certificado) → servidor. El pie de la pantalla y el serial
+dicen `RED: WIFI / HORA / SERVIDOR / CONECTADA` (`BROKER` en modo MQTT).
 
 | Tema | Qué manda | Origen |
 |---|---|---|

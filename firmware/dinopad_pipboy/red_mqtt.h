@@ -1,4 +1,6 @@
-// red_mqtt.h - Wi-Fi + MQTT (TLS) hacia el broker en la nube, en su propia tarea FreeRTOS.
+// red_mqtt.h - Wi-Fi + envío a la base, en su propia tarea FreeRTOS. Dos modos (secretos.h):
+//   HTTPS (BASE_URL): lotes cada 3 s a POST /api/device/ingest del backend, con X-Device-Token.
+//   MQTT (MQTT_HOST): publica en un broker con TLS.
 //
 // loop() NUNCA espera a la red: solo deja mensajes en una cola (redEnviar*), y la tarea
 // "red" (nucleo 1, misma prioridad que loop) conecta, reconecta y publica. Si la cola se
@@ -21,7 +23,7 @@ enum class EstadoRed : uint8_t {
   APAGADA,        // sin secretos.h
   WIFI,           // buscando / conectando el Wi-Fi
   HORA,           // esperando la hora por NTP (TLS la necesita para validar el certificado)
-  BROKER,         // conectando al broker (TLS + usuario)
+  BROKER,         // conectando al servidor (HTTPS) o al broker (MQTT); el pie dice SERVIDOR/BROKER
   CONECTADA,      // publicando
 };
 const char* nombreEstadoRed(EstadoRed e);
