@@ -118,6 +118,7 @@ static const char* pedirEnvio(bool desdeDemo, char* t, size_t n) {
 
 static void manejar(Evento e, bool desdeDemo = false) {
   const char* nombre = nombreEvento(e);
+  ui::origenEventoDemo(desdeDemo);   // el pie dira "Ultimo DEMO:" si lo genero demo.h
   Serial.printf("[%lu ms] %s  (modo=%s, pestana=%s)\n", (unsigned long)millis(), nombre,
                 nombreModo(modo), NOMBRES_PESTANA[pestana]);
 
@@ -193,6 +194,7 @@ void setup() {
   pinMode(PIN_BTN_ROJO, INPUT_PULLUP);
 
   ui::iniciar();
+  ui::ponerDemoAutomatico(DEMO_AUTOMATICO);
   ui::dibujarTodo(pestana, modo, "listo");
 
   compartidoIniciar();

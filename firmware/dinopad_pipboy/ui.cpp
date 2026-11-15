@@ -88,6 +88,8 @@ struct FilaTrack {
 static FilaTrack filasTrack[FILAS_TRACK];
 static int paginaTrack = 0;
 static int cursorMens = 0;
+static bool demoAutomatico = false;   // el menu lo mueve demo.h (pulsaciones simuladas)
+static bool eventoDeDemo = false;     // el ultimo evento lo genero demo.h
 
 // Graficas de VITAL: se redibujan con cada muestra nueva
 static uint32_t graficaVitalVersion = 0;
@@ -160,6 +162,12 @@ static void titulo(Modo modo) {
   tft.setTextSize(1);
   tft.setCursor(104, 8);
   tft.print(modo == Modo::DENTRO ? "DENTRO" : "MENU");
+  if (demoAutomatico) {   // pulsaciones simuladas: siempre visible
+    tft.fillRect(150, 5, 58, 13, COL_AMARILLO);
+    tft.setTextColor(COL_NEGRO, COL_AMARILLO);
+    tft.setCursor(152, 8);
+    tft.print("DEMO AUTO");
+  }
   campos[C_BLE_TITULO].valido = false;
 }
 
@@ -240,11 +248,15 @@ void pie(const char* evento) {
   tft.setTextSize(1);
   tft.setTextColor(COL_AMARILLO, COL_FONDO);
   tft.setCursor(6, Y_PIE);
-  tft.printf("Ultimo: %.42s", evento);
+  if (eventoDeDemo) tft.printf("Ultimo DEMO: %.37s", evento);
+  else tft.printf("Ultimo: %.42s", evento);
   tft.setTextColor(COL_VERDE_MED, COL_FONDO);
   tft.setCursor(6, Y_PIE + 12);
   tft.print("NEG:<  BLA:>  ROJO:ok/largo volver  NEG+BLA 3s:SOS");   // 48 car. = 288 px
 }
+
+void ponerDemoAutomatico(bool activo) { demoAutomatico = activo; }
+void origenEventoDemo(bool desdeDemo) { eventoDeDemo = desdeDemo; }
 
 void dibujarTodo(int pestana, Modo modo, const char* evento) {
   tft.fillScreen(COL_FONDO);

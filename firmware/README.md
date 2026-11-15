@@ -149,13 +149,19 @@ Pestañas: ESTADO, AMBIENTE, TRACK, VITAL, MENS. Etapas:
 | Etapa | Pestaña | Estado |
 |---|---|---|
 | 1 | ESTADO: conexión, RSSI, batería, voltaje, uso de canal, uptime (con colores y antigüedad; gris si es viejo) + reconexión automática | hecha; probada en `82:a4`: llega a CONECTADO |
-| 2 | AMBIENTE: "TEMP AMBIENTE" y luz (0-100), cada una con valor, antigüedad y gráfica de los últimos 30 min (historial de 60 muestras) | hecha; vista en placa |
-| 3 | TRACK: posición propia (lat/lon, sats, altitud, antigüedad) con rótulo **GPS**; sin fix, coordenadas **DEMO** (letrero amarillo) de la base en el cráter Jezero (Marte) y 2 tripulantes simulados, todo en `posicion_demo.h`; lista de nodos (nombre corto, id, saltos, hace cuánto se oyó, MQTT) en páginas de 8, ordenada por el más reciente. **No guarda ni muestra la posición de otros nodos** | hecha; DEMO de Jezero compilada, sin subir |
-| 4 | VITAL: BPM y SpO2 **simulados** (aviso "DEMO" amarillo), número con semáforo NORMAL / ATENCION / CRITICO con los rangos de `backend/data/crew.json`, y gráfica de 2 min con los límites del rango normal. Simulador en `simulador_vital.h`, listo para cambiarlo por el MAX30102 | hecha; vista en placa |
-| 5 | MENS: 8 mensajes predeterminados (`mensajes.h`); dentro, NEGRO/BLANCO eligen y ROJO corto lo envía por el T1000-E (broadcast, canal primario, con seguimiento de cola y ACK) **solo si `ENVIAR_MENSAJE = true`**; queda en `false` | hecha; envío real probado una vez con ACK |
+| 2 | AMBIENTE: "TEMP AMBIENTE" y luz (0-100), cada una con valor, antigüedad y gráfica de los últimos 30 min (historial de 60 muestras) | compila y pasa pruebas en PC; NO probado en la placa |
+| 3 | TRACK: posición propia (lat/lon, sats, altitud, antigüedad) con rótulo **GPS**; sin fix, coordenadas **DEMO** (letrero amarillo) de la base en el cráter Jezero (Marte) y 2 tripulantes simulados, todo en `posicion_demo.h`; lista de nodos (nombre corto, id, saltos, hace cuánto se oyó, MQTT) en páginas de 8, ordenada por el más reciente. **No guarda ni muestra la posición de otros nodos** | compila y pasa pruebas en PC; NO probado en la placa |
+| 4 | VITAL: BPM y SpO2 **simulados** (aviso "DEMO" amarillo), número con semáforo NORMAL / ATENCION / CRITICO con los rangos de `backend/data/crew.json`, y gráfica de 2 min con los límites del rango normal. Simulador en `simulador_vital.h`, listo para cambiarlo por el MAX30102 | compila y pasa pruebas en PC; NO probado en la placa |
+| 5 | MENS: 8 mensajes predeterminados (`mensajes.h`); dentro, NEGRO/BLANCO eligen y ROJO corto lo envía por el T1000-E (broadcast, canal primario, con seguimiento de cola y ACK) **solo si `ENVIAR_MENSAJE = true`**; queda en `false` | compila y pasa pruebas en PC; NO probado en la placa |
 
 Sin botones: con `DEMO_AUTOMATICO = true` (en `dinopad_pipboy.ino`) el menú se recorre
-solo siguiendo `demo.h`; ponlo en `false` cuando la placa tenga botones.
+solo siguiendo `demo.h` (pulsaciones simuladas, no datos); ponlo en `false` cuando la placa
+tenga botones. Mientras está activa, la barra de título muestra "DEMO AUTO" en amarillo y
+el pie dice "Ultimo DEMO:" en los eventos generados por el guion.
+
+Datos simulados (todos con rótulo DEMO amarillo): BPM y SpO2 de VITAL
+(`simulador_vital.h`) y, sin fix de GPS, la base y los tripulantes de TRACK
+(`posicion_demo.h`). Lo demás (ESTADO, AMBIENTE, nodos de TRACK) es real del T1000-E.
 
 Pruebas en la PC (solo g++): `test/verificar_botones.sh`, `test/verificar_historial.sh`,
 `test/verificar_nodos.sh`, `test/verificar_vitales.sh` y `test/verificar_posicion.sh`.

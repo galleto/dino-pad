@@ -19,6 +19,10 @@ void iniciar();                                            // pantalla + orienta
 void dibujarTodo(int pestana, Modo modo, const char* evento);   // borra y dibuja todo
 void cambioDePestana(int pestana, Modo modo);              // pestanas + contenido nuevo
 void pie(const char* evento);
+// Demo automatica (demo.h): rotulo "DEMO AUTO" fijo en la barra de titulo, y el pie
+// marca "Ultimo DEMO:" cuando el evento lo genero el guion y no un boton.
+void ponerDemoAutomatico(bool activo);
+void origenEventoDemo(bool desdeDemo);
 // Refresca la pestana actual y el indicador BLE desde una copia de los datos.
 void actualizar(int pestana, Modo modo, const Compartido& c, const DatosVitales& v, uint32_t ahora);
 
