@@ -240,7 +240,13 @@ usuario), alimentada por USB:** `dinopad_pipboy` de `pines-botones` (`ENVIAR_MEN
 a los 18.7 s (140 paquetes de configuración). El menú siguió respondiendo mientras el BLE
 leía la configuración (eventos de la demo puntuales al milisegundo). **No sabemos qué cambió**
 desde las pruebas fallidas del 14/11 en esta misma placa: no se cambió el código del
-brownout ni la alimentación a propósito. Pendiente: la misma prueba con baterías.
+brownout ni la alimentación a propósito.
+
+**Después, misma placa `82:a4` y mismo firmware, alimentada con baterías (sin USB):
+resultado OK**, según la prueba del usuario (sin captura de consola, porque el USB estaba
+desconectado). Esta versión quedó marcada con el tag `demo-baterias-ok` (`bb7a774`) y sus
+binarios en `firmware/releases/demo-baterias-ok/` (ver su `LEEME.md`).
+**La causa de los brownouts anteriores sigue sin identificar.**
 
 **Cambio de puerto USB de la PC (`77:e4`, pantalla conectada):** de `usb 1-3`
 (donde estuvo todo el día) a `usb 1-1` (el puerto que usaba el mouse). Se detectó

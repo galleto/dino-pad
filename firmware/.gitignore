@@ -2,3 +2,7 @@
 # de Meshtastic (GPL-3.0). Pendiente de decidir la licencia: no se versiona.
 ble_send/src/mtpb/
 dinopad_pipboy/src/mtpb/
+
+# Binarios compilados (incluyen el codigo generado de arriba, GPL-3.0): se guardan
+# localmente en releases/ con su SHA256SUMS y LEEME.md versionados, pero no se suben.
+releases/**/*.bin
