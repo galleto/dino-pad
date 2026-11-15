@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Activity, Bell, ChartLine, Clock3, FlaskConical, MapPinned, ShieldAlert, Siren, UsersRound } from 'lucide-react';
 import { useVitals } from './hooks/useVitals';
 import { useConnection } from './hooks/useConnection';
 import { AlertsPage, CrewPage, EmergencyPage, EmptyPage, HistoryPage, LabPage, MonitorPage, RisksPage, TrendsPage } from './components/Pages';
@@ -10,15 +11,15 @@ import './styles/pages.css';
 import './styles/assistant.css';
 
 const NAV_ITEMS = [
-  ['monitoreo', '01', 'Monitoreo'],
-  ['alertas', '02', 'Alertas'],
-  ['historial', '03', 'Historial'],
-  ['tendencias', '04', 'Tendencias'],
-  ['tripulacion', '05', 'Tripulación'],
-  ['riesgos', '06', 'Riesgos NASA'],
-  ['emergencia', '07', 'Emergencia'],
-  ['laboratorio', '08', 'Laboratorio'],
-  ['mapas', '09', 'Mapas'],
+  ['monitoreo', '01', 'Monitoreo', Activity],
+  ['alertas', '02', 'Alertas', Bell],
+  ['historial', '03', 'Historial', Clock3],
+  ['tendencias', '04', 'Tendencias', ChartLine],
+  ['tripulacion', '05', 'Tripulación', UsersRound],
+  ['riesgos', '06', 'Riesgos NASA', ShieldAlert],
+  ['emergencia', '07', 'Emergencia', Siren],
+  ['laboratorio', '08', 'Laboratorio', FlaskConical],
+  ['mapas', '09', 'Mapas', MapPinned],
 ];
 
 const PAGE_TITLES = Object.fromEntries(NAV_ITEMS.map(([id, , label]) => [id, label]));
@@ -89,13 +90,14 @@ function App() {
     <div className="app-shell scanlines">
       <aside className="sidebar" aria-label="Navegación principal">
         <a className="brand" href="#/monitoreo" aria-label="Dinopad, ir a Monitoreo">
-          <span className="brand-mark" aria-hidden="true">D</span>
+          <img className="brand-logo" src={`${import.meta.env.BASE_URL}icons/icon.svg`} alt="" aria-hidden="true" />
           <span className="brand-copy"><strong>DINOPAD</strong><small>SISTEMA DE SALUD ESPACIAL</small></span>
         </a>
         <div className="nav-caption">CENTRO DE MISIÓN</div>
         <nav className="nav-list">
-          {NAV_ITEMS.map(([id, number, label]) => (
-            <a key={id} href={`#/${id}`} className={`nav-link${route === id ? ' active' : ''}`} aria-label={label} aria-current={route === id ? 'page' : undefined}>
+          {NAV_ITEMS.map(([id, number, label, Icon]) => (
+            <a key={id} href={`#/${id}`} className={`nav-link${route === id ? ' active' : ''}`} aria-label={label} aria-current={route === id ? 'page' : undefined} title={label}>
+              <Icon className="nav-icon" size={20} strokeWidth={1.8} aria-hidden="true" focusable="false" />
               <span className="nav-number">{number}</span><span className="nav-label">{label}</span>
             </a>
           ))}
