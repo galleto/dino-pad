@@ -6,6 +6,7 @@ import HealthAlerts from './HealthAlerts';
 import CrewSelector from './CrewSelector';
 import FiguraHumana from './FiguraHumana';
 import Dossier from './Dossier';
+import { useZona } from './seleccion';
 import { ZONA_INFO } from './zonasCuerpo';
 
 // El visor 3D (three.js) es opcional y solo se descarga al pedir "Vista 3D".
@@ -15,7 +16,7 @@ export default function VitalMetrics({ data, onSelectIndicator }) {
   const { crew, indicators, activeCrewId, setActiveCrewId, latest, history, alerts } = data;
   const astronaut = crew[activeCrewId];
   const current = latest[activeCrewId] || {};
-  const [selected, setSelected] = useState('');
+  const [selected, setSelected] = useZona();
   const [vista, setVista] = useState('figura');
   const hasReading = Object.values(current).some((reading) => reading?.quality !== 'no_signal' && reading?.value != null);
   const status = hasReading ? getOverallStatus(astronaut, current) : 'warn';
@@ -24,7 +25,7 @@ export default function VitalMetrics({ data, onSelectIndicator }) {
   const [foco, setFoco] = useState('');
   const seleccionado = indicators[selected];
   const elegir = (id, nuevoFoco = '') => { setSelected(id); setFoco(nuevoFoco); if (indicators[id]) onSelectIndicator?.(id); };
-  const cerrar = useCallback(() => { setSelected(''); setFoco(''); }, []);
+  const cerrar = useCallback(() => { setSelected(''); setFoco(''); }, [setSelected]);
   const fc = current.hr;
   return (
     <div className="monitor">

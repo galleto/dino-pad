@@ -40,8 +40,8 @@ semáforo, pero falta el dossier con la función de cada zona (pieza B).
 | Requisito | Estado hoy |
 |---|---|
 | Tres orígenes visibles: REAL / DEMO / REFERENCIA NASA (+ REGISTRO DEL USUARIO) | Partida: **parcial** (EN VIVO / SIMULADO). **Tras E1: parcial**: rótulo `Origen` con los 4 orígenes y leyenda en Monitoreo y Laboratorio; todas las lecturas muestran REAL o DEMO. REFERENCIA NASA y REGISTRO DEL USUARIO están definidos pero aún no hay datos que los usen (E4 y E5) |
-| DINO PAD EN VIVO (gemelo digital de la pantalla 320x240) | **falta** |
-| Batería, temperatura ambiente y luz del T1000-E aparte de la temperatura corporal | **falta** (Emergencia muestra batería/RSSI "Sin datos") |
+| DINO PAD EN VIVO (gemelo digital de la pantalla 320x240) | Partida: falta. **Tras C: cumple** como gemelo simulado (rotulado SIMULADO/DEMO); el espejo exacto es PROPUESTA (`docs/propuesta-espejo.md`) |
+| Batería, temperatura ambiente y luz del T1000-E aparte de la temperatura corporal | Partida: falta. **Tras C: parcial**: se muestran en el gemelo (pestañas ESTADO y AMBIENTE) como DEMO y separadas de la temperatura corporal; datos reales requieren la PROPUESTA 2 |
 | Mapa de Jezero con base y tripulantes (DEMO) | **falta** |
 | Reloj de misión (Tierra + sol marciano, retraso de comunicación) | **falta** |
 

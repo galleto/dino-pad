@@ -182,6 +182,18 @@ No se quitan; el rediseño los hace visibles.
 | [x] | Latido del corazón al ritmo de la FC, con el origen de la lectura | B: Playwright (`--latido`) |
 | [ ] | Vista 3D con WebGL real | pendiente (sin WebGL en la prueba; se ve el respaldo) |
 
+### Pieza C (DINO PAD EN VIVO)
+
+| | Elemento | Verificado en |
+|---|---|---|
+| [x] | Página 09 "DINO PAD": gemelo 320×240 con las 5 pestañas del firmware | C: Playwright y capturas |
+| [x] | Botones NEGRO / BLANCO / ROJO (clic, toque, teclado), ROJO largo = volver | C: Playwright |
+| [x] | SOS de PRUEBA (NEGRO+BLANCO 3 s, barra de progreso); no dispara el SOS real | C: Playwright |
+| [x] | DEMO AUTO con el guion del firmware y rótulo amarillo | C: Playwright |
+| [x] | Cadena "¿Cómo se crean los datos?" con estado y origen por eslabón | C: capturas |
+| [x] | Vínculo DINO PAD ↔ figura humana | C: Playwright |
+| [ ] | Insignia "EN VIVO desde el DINO PAD" con lecturas reales | pendiente (sin backend con `live`) |
+
 ## 14. Estado de partida del build
 
 - `npm run build`: compila, con **1 advertencia**: el chunk de `BodyViewer3D`

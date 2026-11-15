@@ -73,6 +73,7 @@ export default function Dossier({ zonaId, crew, indicators, latest, history, foc
             {reading && <Origen source={reading.source} compact />}
           </div>
           <Grafica readings={history || []} ranges={ranges} unit={indicator.unit} />
+          {(zonaId === 'hr' || zonaId === 'spo2') && <p className="dossier-nota"><a href="#/dinopad">Ver este dato en el DINO PAD (pestaña VITAL)</a></p>}
           <p className="dossier-rango">Rango normal <b>{ranges.ok[0]}–{ranges.ok[1]} {indicator.unit}</b>{Number.isFinite(base) && <> · tu valor habitual <b>{base} {indicator.unit}</b></>}. Son rangos del proyecto, no de la NASA.</p>
         </Seccion>
       ) : (

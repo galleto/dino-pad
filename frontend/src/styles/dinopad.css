@@ -1,0 +1,93 @@
+/* dinopad.css · Gemelo digital del DINO PAD. Marco de hardware de diseño propio. */
+.dp-pagina { display: grid; gap: 34px; }
+.dp-escena { display: grid; grid-template-columns: auto minmax(300px, 460px); align-items: start; justify-content: center; gap: 56px; }
+
+/* ---------- Carcasa ---------- */
+.dp-equipo-sombra { filter: drop-shadow(0 30px 50px #000c) drop-shadow(0 0 60px rgba(0, 255, 0, 0.07)); }
+.dp-equipo { --px: 2; position: relative; display: grid; gap: 14px; padding: 16px 22px 20px; background:
+    linear-gradient(180deg, #ffffff0d, transparent 18%),
+    repeating-linear-gradient(90deg, #ffffff05 0 1px, transparent 1px 3px),
+    #1a211c;
+  clip-path: polygon(22px 0, calc(100% - 22px) 0, 100% 22px, 100% calc(100% - 40px), calc(100% - 40px) 100%, 22px 100%, 0 calc(100% - 22px), 0 22px); }
+.dp-rotulo { display: flex; align-items: baseline; gap: 12px; padding: 0 4px; color: #6f7d72; font-size: 10px; letter-spacing: .08em; }
+.dp-rotulo strong { color: #c9d6cb; font-size: 14px; font-weight: 700; letter-spacing: .22em; }
+.dp-led { width: 7px; height: 7px; margin-left: auto; align-self: center; border-radius: 50%; background: #00ff00; box-shadow: 0 0 8px #00ff00; animation: latido-punto 2.4s ease-in-out infinite; }
+.dp-bisel { position: relative; padding: 12px; border: 1px solid #000; background: #050705; box-shadow: inset 0 0 0 1px #2a332c, inset 0 3px 14px #000; }
+/* Píxeles nítidos: escala entera y sin suavizado */
+.dp-pantalla { display: block; width: calc(320px * var(--px)); height: calc(240px * var(--px)); image-rendering: pixelated; image-rendering: crisp-edges; background: #000; box-shadow: 0 0 34px rgba(0, 255, 0, 0.22); }
+.dp-bisel::after { position: absolute; inset: 12px; pointer-events: none; background:
+    repeating-linear-gradient(to bottom, transparent 0 calc(var(--px) * 1px - 1px), #00000030 calc(var(--px) * 1px - 1px) calc(var(--px) * 1px)),
+    radial-gradient(ellipse at center, transparent 62%, #00000055 100%);
+  content: ""; }
+.dp-botonera { display: flex; align-items: flex-start; gap: 22px; padding: 6px 6px 0; }
+.dp-boton { display: grid; justify-items: center; gap: 5px; padding: 0; border: 0; background: none; color: #8b998e; font-size: 10px; letter-spacing: .1em; cursor: pointer; touch-action: none; user-select: none; }
+.dp-boton i { display: block; width: 58px; height: 58px; border: 3px solid #0a0d0b; border-radius: 50%; box-shadow: 0 5px 0 #070908, inset 0 2px 3px #ffffff38, inset 0 -6px 10px #0006; transition: transform .05s ease, box-shadow .05s ease; }
+.dp-negro i { background: #1d201e; }
+.dp-blanco i { background: #e4e9e4; }
+.dp-rojo i { background: #d5281f; }
+.dp-rojo { margin-left: auto; }
+.dp-boton.is-down i { transform: translateY(4px); box-shadow: 0 1px 0 #070908, inset 0 2px 8px #0009; }
+.dp-boton:focus-visible { outline: 0; }
+.dp-boton:focus-visible i { outline: 2px solid var(--green); outline-offset: 3px; }
+.dp-boton kbd, .dp-controles kbd { padding: 0 5px; border: 1px solid #39443b; color: #8b998e; font: inherit; font-size: 10px; }
+.dp-rejilla { position: absolute; right: 54px; bottom: 16px; width: 54px; height: 12px; background: repeating-linear-gradient(90deg, #0a0d0b 0 3px, transparent 3px 7px); }
+
+/* ---------- Columna de contexto ---------- */
+.dp-lado { display: grid; gap: 24px; }
+.dp-insignia { display: grid; gap: 2px; padding: 10px 14px; border: 1px dashed var(--muted); background: repeating-linear-gradient(135deg, rgba(216, 230, 217, 0.07) 0 4px, transparent 4px 8px); }
+.dp-insignia strong { font-size: var(--t-xl); font-weight: 600; letter-spacing: .06em; }
+.dp-insignia span { color: var(--muted); font-size: var(--t-sm); }
+.dp-insignia.is-vivo { border: 1px solid var(--green); background: #a4ff7010; }
+.dp-insignia.is-vivo strong { color: var(--green); text-shadow: var(--glow); }
+.dp-demo-auto { padding: 5px 10px; color: #000; font-weight: 600; background: #ffff00; }
+.dp-bloque { display: grid; gap: 9px; }
+.dp-bloque p { line-height: 1.55; }
+.dp-nota { color: var(--muted); font-size: var(--t-sm); }
+.dp-nota a { color: var(--green); }
+.dp-controles { display: grid; gap: 0; margin: 0; }
+.dp-controles div { display: grid; grid-template-columns: 150px 1fr; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.dp-controles dd { margin: 0; color: var(--muted); }
+.dp-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+.dp-acciones .button { touch-action: none; user-select: none; }
+
+/* ---------- Cadena de datos ---------- */
+.dp-cadena { display: grid; gap: 14px; }
+.dp-eslabones { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 0; padding: 0; list-style: none; }
+.dp-eslabon { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); }
+.dp-eslabon:first-child { grid-template-columns: minmax(0, 1fr); }
+.dp-via { position: relative; display: grid; width: 64px; align-content: start; justify-items: center; padding-top: 2px; color: var(--muted); font-size: 10px; }
+.dp-via i { display: block; width: 100%; height: 2px; margin: 9px 0 5px; background: repeating-linear-gradient(90deg, var(--line-bright) 0 5px, transparent 5px 10px); }
+.es-ok > .dp-via i { background: repeating-linear-gradient(90deg, var(--green) 0 5px, transparent 5px 10px); background-size: 10px 2px; box-shadow: 0 0 8px rgba(164, 255, 112, 0.5); animation: flujo .7s linear infinite; }
+.es-parcial > .dp-via i { background: repeating-linear-gradient(90deg, var(--green-dim) 0 3px, transparent 3px 10px); background-size: 10px 2px; animation: flujo 2s linear infinite; }
+@keyframes flujo { to { background-position: 10px 0; } }
+.dp-nodo { display: grid; align-content: start; gap: 3px; padding: 0 10px 0 0; justify-items: start; }
+.dp-nodo strong { font-size: var(--t-lg); font-weight: 600; }
+.dp-nodo small { color: var(--muted); font-size: var(--t-xs); }
+.dp-nodo p { margin: 3px 0 5px; color: var(--muted); font-size: var(--t-sm); line-height: 1.45; }
+.dp-estado { font-size: var(--t-xs); }
+.es-ok .dp-estado { color: var(--green); }
+.es-parcial .dp-estado, .dp-estado.es-parcial { color: var(--text); }
+.es-pend .dp-estado { color: var(--muted); }
+.es-pend .dp-nodo strong { color: var(--muted); }
+.dp-wifi { padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted); font-size: var(--t-sm); }
+.dp-wifi strong { color: var(--text); font-weight: 500; }
+
+@media (min-width: 1700px) and (min-height: 1000px) { .dp-equipo { --px: 2; } }
+@media (max-width: 1250px) {
+  .dp-escena { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 28px; }
+  .dp-lado { width: 100%; max-width: 700px; }
+  .dp-eslabones { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px 0; }
+}
+@media (max-width: 760px) {
+  .dp-equipo { --px: 1; padding: 12px 12px 16px; gap: 10px; clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 26px), calc(100% - 26px) 100%, 14px 100%, 0 calc(100% - 14px), 0 14px); }
+  .dp-rotulo span { display: none; }
+  .dp-bisel { padding: 6px; }
+  .dp-bisel::after { inset: 6px; background: radial-gradient(ellipse at center, transparent 62%, #00000055 100%); }
+  .dp-boton i { width: 52px; height: 52px; }
+  .dp-rejilla { display: none; }
+  .dp-eslabones { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .dp-eslabon, .dp-eslabon:first-child { grid-template-columns: minmax(0, 1fr); }
+  .dp-via { width: auto; grid-auto-flow: column; justify-content: start; gap: 8px; padding: 6px 0; }
+  .dp-via i { width: 2px; height: 22px; margin: 0 6px; background: repeating-linear-gradient(180deg, var(--line-bright) 0 5px, transparent 5px 10px); animation: none !important; }
+  .dp-controles div { grid-template-columns: 130px 1fr; }
+}

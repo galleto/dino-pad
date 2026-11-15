@@ -3,6 +3,7 @@ import { useVitals } from './hooks/useVitals';
 import { useConnection } from './hooks/useConnection';
 import { AlertsPage, CrewPage, EmergencyPage, EmptyPage, HistoryPage, LabPage, MonitorPage, RisksPage, TrendsPage } from './components/Pages';
 import Starfield from './components/Starfield';
+import DinoPadPage from './components/DinoPadPage';
 import { ClaveOrigen } from './components/Origen';
 import './styles/tokens.css';
 import './styles/layout.css';
@@ -18,6 +19,7 @@ const NAV_ITEMS = [
   ['riesgos', '06', 'Riesgos NASA'],
   ['emergencia', '07', 'Emergencia'],
   ['laboratorio', '08', 'Laboratorio'],
+  ['dinopad', '09', 'DINO PAD'],
 ];
 
 const PAGE_TITLES = Object.fromEntries(NAV_ITEMS.map(([id, , label]) => [id, label]));
@@ -114,7 +116,7 @@ function App() {
         {cacheWarning && <div className="cache-warning" role="status">{cacheWarning}</div>}
         <main className="page-content">
           {connectionState === 'offline' && <div className="data-cached cache-banner" role="status">SIN ENLACE · Datos en caché {lastCachedAt ? `guardados ${new Date(lastCachedAt).toLocaleString('es')}` : 'sin historial local guardado'}.</div>}
-          <div className="page-enter" key={route}>{route === 'monitoreo' ? <MonitorPage /> : route === 'alertas' ? <AlertsPage /> : route === 'historial' ? <HistoryPage /> : route === 'tendencias' ? <TrendsPage /> : route === 'tripulacion' ? <CrewPage /> : route === 'riesgos' ? <RisksPage /> : route === 'emergencia' ? <EmergencyPage /> : route === 'laboratorio' ? <LabPage /> : <EmptyPage title={PAGE_TITLES[route]} description="Módulo de misión." />}</div>
+          <div className="page-enter" key={route}>{route === 'monitoreo' ? <MonitorPage /> : route === 'alertas' ? <AlertsPage /> : route === 'historial' ? <HistoryPage /> : route === 'tendencias' ? <TrendsPage /> : route === 'tripulacion' ? <CrewPage /> : route === 'riesgos' ? <RisksPage /> : route === 'emergencia' ? <EmergencyPage /> : route === 'laboratorio' ? <LabPage /> : route === 'dinopad' ? <DinoPadPage /> : <EmptyPage title={PAGE_TITLES[route]} description="Módulo de misión." />}</div>
         </main>
         <footer className="app-footer"><span>DINOPAD · NASA SPACE APPS 2026</span><span className="sidebar-bottom"><span className="status-dot" /> SISTEMA OPERATIVO <small>CONTROL DE MISIÓN · 2026</small></span><span>Prototipo de monitoreo · No es un dispositivo médico</span></footer>
       </div>

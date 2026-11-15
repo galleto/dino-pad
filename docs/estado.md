@@ -38,6 +38,25 @@ backend real. Firefox sin interfaz solo captura al cargar.
 Pruebas: Playwright vive FUERA del repo en `~/.cache/dinopad-pw` (`node b.mjs <dir-salida>`,
 con `npx vite preview --port 4317` corriendo en frontend/).
 
+## Pieza C · DINO PAD EN VIVO (TERMINADA)
+
+- `frontend/src/dinopad/maquina.js`: port de botones.cpp, demo.h, posicion_demo.h,
+  simulador_vital.h y manejar(). 17 comprobaciones con Node (botones, SOS 3 s, guion DEMO).
+- `frontend/src/dinopad/pantalla.js`: renderizador 320x240 según ui.cpp (fuente 5x7 de
+  Adafruit GFX transcrita: confirmar contra el dispositivo).
+- `components/DinoPadPage.jsx` + `styles/dinopad.css`: carcasa propia, 3 botones (ratón, toque
+  y teclado), DEMO AUTO, SOS de PRUEBA con barra, insignia SIMULADO / EN VIVO, cadena de datos.
+  Ruta `#/dinopad` (pestaña 09). Los cambios de botón llevan su hora (no se pierden pulsaciones
+  cortas con pocos cuadros por segundo).
+- `components/seleccion.js`: zona seleccionada compartida figura <-> DINO PAD (entrar a VITAL
+  selecciona el corazón; el dossier de FC/SpO2 enlaza al DINO PAD).
+- `docs/propuesta-espejo.md`: espejo exacto y telemetría del tracker (PROPUESTA).
+- Playwright (`~/.cache/dinopad-pw/c.mjs`): pestañas, ROJO largo, MENS no envía, SOS de prueba
+  (no dispara el banner SOS real), vínculo con la figura, DEMO AUTO, sin errores de consola.
+
+Sin verificar en C: insignia "EN VIVO" (necesita lecturas `live` del backend), fidelidad de
+la fuente contra el dispositivo físico, toque con dos dedos en un celular real.
+
 ## Siguiente
 C DINO PAD EN VIVO · D tormenta solar · E a I.
 
