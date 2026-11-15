@@ -92,6 +92,11 @@ static const char* oVacio(const char* s) { return (s && s[0]) ? s : "-"; }
 // ---------------------------------------------------------------------------
 // Decodificacion
 // ---------------------------------------------------------------------------
+uint32_t epochEstimado(const DatosTracker& d, uint32_t ahora) {
+  if (!d.epochRef) return 0;
+  return d.epochRef + (ahora - d.msRef) / 1000;
+}
+
 bool decodificarFromRadio(const uint8_t* datos, size_t len, meshtastic_FromRadio* out) {
   memset(out, 0, sizeof(*out));
   pb_istream_t s = pb_istream_from_buffer(datos, len);
@@ -156,6 +161,10 @@ static void contarPuerto(Estadisticas& est, uint32_t portnum) {
 static void procesarPaquete(const meshtastic_MeshPacket& p, DatosTracker& d, Estadisticas& est,
                             uint32_t ahora, FnLog v) {
   bool propio = d.tieneMiNodo && (p.from == d.miNodo || p.from == 0);
+  if (p.has_rx_time && p.rx_time > d.epochRef) {   // el reloj solo avanza
+    d.epochRef = p.rx_time;
+    d.msRef = ahora;
+  }
   if (v) {
     v(" from=!%08lx%s", (unsigned long)p.from, propio ? "(propio)" : "");
     if (p.has_rx_time) v(" rx_time=%lu", (unsigned long)p.rx_time);
@@ -192,6 +201,19 @@ static void procesarPaquete(const meshtastic_MeshPacket& p, DatosTracker& d, Est
         if (e.has_temperature) { d.tieneTemperatura = true; d.temperatura = e.temperature; }
         if (e.has_lux) { d.tieneLuz = true; d.luz = e.lux; }
         d.msAmbiente = ahora ? ahora : 1;
+        // Hora de la medicion: rx_time del paquete (el dato guardado que el
+        // tracker reenvia al conectar trae su hora original)
+        uint32_t epoch = p.has_rx_time ? p.rx_time : epochEstimado(d, ahora);
+        if (epoch) {
+          d.epochAmbiente = epoch;
+          MuestraAmbiente m;
+          m.epoch = epoch;
+          m.tieneTemp = e.has_temperature;
+          m.temp = e.temperature;
+          m.tieneLuz = e.has_lux;
+          m.luz = e.lux;
+          d.historial.agregar(m);   // ignora repetidas o mas viejas
+        }
         d.cambio = true;
       }
     }

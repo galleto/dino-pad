@@ -148,8 +148,8 @@ Pestañas: ESTADO, AMBIENTE, TRACK, VITAL, MENS. Etapas:
 
 | Etapa | Pestaña | Estado |
 |---|---|---|
-| 1 | ESTADO: conexión, RSSI, batería, voltaje, uso de canal, uptime (con colores y antigüedad; gris si es viejo) + reconexión automática | hecha; sin probar con BLE por los brownouts |
-| 2 | AMBIENTE: temperatura y luz con gráfica | pendiente |
+| 1 | ESTADO: conexión, RSSI, batería, voltaje, uso de canal, uptime (con colores y antigüedad; gris si es viejo) + reconexión automática | hecha; probada en `82:a4`: llega a CONECTADO |
+| 2 | AMBIENTE: "TEMP AMBIENTE" y luz (0-100), cada una con valor, antigüedad y gráfica de los últimos 30 min (historial de 60 muestras) | hecha, compilada; sin subir |
 | 3 | TRACK: posición propia y lista de nodos | pendiente |
 | 4 | VITAL: BPM/SpO2 simulados ("DEMO") | pendiente |
 | 5 | MENS: mensajes recibidos | pendiente |
@@ -191,7 +191,8 @@ necesita haber generado antes `ble_send/src/mtpb/` (ver arriba).
 Lógica de los botones del menú (`dinopad_pipboy`), solo necesita `g++`:
 
 ```sh
-firmware/dinopad_pipboy/test/verificar_botones.sh   # debe terminar con "TODO OK"
+firmware/dinopad_pipboy/test/verificar_botones.sh    # debe terminar con "TODO OK"
+firmware/dinopad_pipboy/test/verificar_historial.sh  # historial de ambiente (AMBIENTE)
 ```
 
 ## Regenerar el código de Nanopb

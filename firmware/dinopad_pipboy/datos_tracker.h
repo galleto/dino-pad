@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "historial.h"
 #include "src/mtpb/mesh.pb.h"
 #include "src/mtpb/telemetry.pb.h"
 
@@ -49,6 +50,13 @@ struct DatosTracker {
   bool tieneTemperatura = false; float temperatura = 0;
   bool tieneLuz = false;         float luz = 0;     // el firmware del T1000-E la manda como 0-100
   uint32_t msAmbiente = 0;
+  uint32_t epochAmbiente = 0;      // hora real de la ultima medicion (rx_time), 0 = desconocida
+  HistorialAmbiente historial;     // ultimas 60 mediciones propias (para la grafica)
+
+  // Reloj: el ESP32 no tiene hora real. Se estima con el rx_time mas reciente
+  // visto en cualquier paquete (epochRef) y el millis() en que llego (msRef).
+  uint32_t epochRef = 0;
+  uint32_t msRef = 0;
 
   // Configuracion relevante
   bool tieneCfgTelemetria = false;
@@ -86,6 +94,9 @@ struct Estadisticas {
 
 // Decodifica un FromRadio. 'out' debe ser estatico/global (768 B en el ESP32).
 bool decodificarFromRadio(const uint8_t* datos, size_t len, meshtastic_FromRadio* out);
+
+// Hora real estimada (epoch, s) para 'ahoraMs'. 0 si aun no llego ningun rx_time.
+uint32_t epochEstimado(const DatosTracker& d, uint32_t ahoraMs);
 
 // Actualiza 'datos' y 'est' con un FromRadio ya decodificado. Si 'volcado' no es
 // nulo, imprime una linea con el tipo y los datos reales del mensaje.

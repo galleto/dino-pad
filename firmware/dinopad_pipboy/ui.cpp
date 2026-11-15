@@ -35,6 +35,9 @@ const char* const NOMBRES_PESTANA[N_PESTANAS] = {"ESTADO", "AMBIENTE", "TRACK", 
 // Antiguedad a partir de la cual un dato se muestra en gris
 static const uint32_t VIEJO_METRICAS_MS = 150000;   // DeviceMetrics llegan cada ~60 s
 static const uint32_t VIEJO_RSSI_MS     = 15000;    // RSSI se lee cada 5 s conectado
+static const uint32_t VIEJO_AMBIENTE_S  = 150;      // ambiente llega cada ~60 s (si esta activado)
+static const uint32_t VENTANA_GRAFICA_S = 30 * 60;  // las graficas muestran los ultimos 30 min
+static const uint32_t HUECO_GRAFICA_S   = 5 * 60;   // no unir puntos separados mas de 5 min
 
 static Adafruit_ILI9341 tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
 
@@ -50,12 +53,20 @@ enum IdCampo {
   C_EST_CONEXION, C_EST_CONEXION_E, C_EST_RSSI, C_EST_RSSI_E, C_EST_BAT, C_EST_BAT_E,
   C_EST_VOLT, C_EST_VOLT_E, C_EST_CANAL, C_EST_CANAL_E, C_EST_UPTIME, C_EST_UPTIME_E,
   C_EST_EXTRA,
+  // AMBIENTE
+  C_AMB_TEMP, C_AMB_TEMP_E, C_AMB_LUZ, C_AMB_LUZ_E,
   N_CAMPOS
 };
 static Campo campos[N_CAMPOS];
 
+// Graficas: se redibujan si llega una muestra nueva o pasa un minuto (para correrse)
+static uint32_t graficaVersion = 0;
+static uint32_t graficaMinuto = 0;
+static bool graficaValida = false;
+
 static void invalidarCampos() {
   for (auto& c : campos) c.valido = false;
+  graficaValida = false;
 }
 
 // Dibuja 'texto' en (x,y) con fondo negro, rellenando hasta 'ancho' caracteres
@@ -152,6 +163,19 @@ static void marcoContenido(int pestana, Modo modo) {
       tft.setCursor(10, Y_CONTENIDO + 10 + i * 20);
       tft.print(ETIQ[i]);
     }
+  } else if (pestana == P_AMBIENTE) {
+    // Dos columnas: TEMP AMBIENTE (x=6) y LUZ (x=164), cada una con valor y grafica
+    tft.setTextSize(1);
+    tft.setTextColor(COL_GRIS, COL_FONDO);
+    tft.setCursor(6, Y_CONTENIDO + 5);
+    tft.print("TEMP AMBIENTE");
+    tft.setCursor(164, Y_CONTENIDO + 5);
+    tft.print("LUZ (0-100)");
+    tft.setTextColor(COL_VERDE_OSC, COL_FONDO);
+    tft.setCursor(104, Y_CONTENIDO + 5);
+    tft.print("30min");
+    tft.setCursor(262, Y_CONTENIDO + 5);
+    tft.print("30min");
   } else {
     // Pestanas todavia vacias
     textoCentrado(NOMBRES_PESTANA[pestana], Y_CONTENIDO + 40, 3, COL_VERDE, COL_FONDO);
@@ -300,6 +324,137 @@ static void contenidoEstado(const Compartido& c, uint32_t ahora) {
         27, v);
 }
 
+// ---------- AMBIENTE ----------
+// "12s"/"3m"/"2h" a partir de segundos
+static void edadSegundos(char* buf, size_t n, uint32_t s) {
+  if (s < 100) snprintf(buf, n, "%lus", (unsigned long)s);
+  else if (s < 6000) snprintf(buf, n, "%lum", (unsigned long)(s / 60));
+  else snprintf(buf, n, "%luh", (unsigned long)(s / 3600));
+}
+
+static void textoEnCaja(int x, int w, int y, uint16_t color, const char* s) {
+  tft.setTextSize(1);
+  tft.setTextColor(color, COL_FONDO);
+  tft.setCursor(x + (w - (int)strlen(s) * 6) / 2, y);
+  tft.print(s);
+}
+
+// Grafica de los ultimos VENTANA_GRAFICA_S segundos. esLuz: escala fija 0-100.
+static void grafica(int x, int y, int w, int h, const HistorialAmbiente& hist, bool esLuz,
+                    uint32_t ahoraEpoch, uint16_t color, const char* vacio) {
+  tft.fillRect(x + 1, y + 1, w - 2, h - 2, COL_FONDO);
+  tft.drawRect(x, y, w, h, COL_VERDE_OSC);
+
+  // Muestras dentro de la ventana que tengan el valor pedido
+  float vmin = 1e9f, vmax = -1e9f;
+  int n = 0;
+  for (int i = 0; i < hist.cantidad(); i++) {
+    const MuestraAmbiente& m = hist.muestra(i);
+    bool tiene = esLuz ? m.tieneLuz : m.tieneTemp;
+    if (!tiene || m.epoch + VENTANA_GRAFICA_S < ahoraEpoch || m.epoch > ahoraEpoch + 60) continue;
+    float v = esLuz ? m.luz : m.temp;
+    if (v < vmin) vmin = v;
+    if (v > vmax) vmax = v;
+    n++;
+  }
+  if (!n) {
+    textoEnCaja(x, w, y + h / 2 - 4, COL_GRIS, vacio);
+    return;
+  }
+  if (esLuz) {
+    vmin = 0;
+    vmax = 100;
+  } else if (vmax - vmin < 2.0f) {   // escala minima de 2 C para no exagerar el ruido
+    float mid = (vmax + vmin) / 2;
+    vmin = mid - 1.0f;
+    vmax = mid + 1.0f;
+  }
+
+  char t[12];
+  snprintf(t, sizeof t, esLuz ? "%.0f" : "%.1f", vmax);
+  tft.setTextSize(1);
+  tft.setTextColor(COL_VERDE_MED, COL_FONDO);
+  tft.setCursor(x + 3, y + 3);
+  tft.print(t);
+  snprintf(t, sizeof t, esLuz ? "%.0f" : "%.1f", vmin);
+  tft.setCursor(x + 3, y + h - 10);
+  tft.print(t);
+
+  int px0 = 0, py0 = 0;
+  uint32_t e0 = 0;
+  bool hayPrevio = false;
+  for (int i = 0; i < hist.cantidad(); i++) {
+    const MuestraAmbiente& m = hist.muestra(i);
+    bool tiene = esLuz ? m.tieneLuz : m.tieneTemp;
+    if (!tiene || m.epoch + VENTANA_GRAFICA_S < ahoraEpoch || m.epoch > ahoraEpoch + 60) continue;
+    float v = esLuz ? m.luz : m.temp;
+    uint32_t atras = ahoraEpoch > m.epoch ? ahoraEpoch - m.epoch : 0;
+    int px = x + w - 3 - (int)((long)(w - 6) * (long)atras / (long)VENTANA_GRAFICA_S);
+    int py = y + h - 3 - (int)((h - 6) * (v - vmin) / (vmax - vmin));
+    if (hayPrevio && m.epoch - e0 <= HUECO_GRAFICA_S) tft.drawLine(px0, py0, px, py, color);
+    tft.fillRect(px - 1, py - 1, 3, 3, color);
+    px0 = px; py0 = py; e0 = m.epoch;
+    hayPrevio = true;
+  }
+}
+
+static void contenidoAmbiente(const Compartido& c, uint32_t ahora) {
+  const DatosTracker& d = c.datos;
+  uint32_t ahoraEpoch = epochEstimado(d, ahora);
+  bool desactivado = d.tieneCfgTelemetria && !d.ambienteActivado;
+  // Valor: max 8 caracteres en tamano 2. Grafica: hasta 24 en tamano 1.
+  const char* sinDato = desactivado ? "apagado" : "sin dato";
+  const char* sinDatoGrafica = desactivado ? "desactivado en tracker" : "sin dato";
+
+  // Antiguedad de la ultima medicion: por hora real si se conoce, si no por millis()
+  uint32_t edadS = 0;
+  bool conocida = false;
+  if (d.epochAmbiente && ahoraEpoch) {
+    edadS = ahoraEpoch > d.epochAmbiente ? ahoraEpoch - d.epochAmbiente : 0;
+    conocida = true;
+  } else if (d.msAmbiente) {
+    edadS = (ahora - d.msAmbiente) / 1000;
+    conocida = true;
+  }
+  bool viejo = !conocida || edadS > VIEJO_AMBIENTE_S;
+  char v[24], e[12];
+  if (conocida) edadSegundos(e, sizeof e, edadS);
+  else snprintf(e, sizeof e, "--");
+
+  int yValor = Y_CONTENIDO + 18;
+  if (d.tieneTemperatura) {
+    snprintf(v, sizeof v, "%.1f C", d.temperatura);
+    campo(C_AMB_TEMP, 6, yValor, 2, viejo ? COL_GRIS : COL_AMARILLO, 8, v);
+    campo(C_AMB_TEMP_E, 116, yValor + 4, 1, COL_GRIS, 6, e);
+  } else {
+    campo(C_AMB_TEMP, 6, yValor, 2, COL_GRIS, 8, sinDato);
+    campo(C_AMB_TEMP_E, 116, yValor + 4, 1, COL_GRIS, 6, "");
+  }
+  if (d.tieneLuz) {
+    snprintf(v, sizeof v, "%.0f /100", d.luz);
+    campo(C_AMB_LUZ, 164, yValor, 2, viejo ? COL_GRIS : COL_BLANCO, 8, v);
+    campo(C_AMB_LUZ_E, 274, yValor + 4, 1, COL_GRIS, 6, e);
+  } else {
+    campo(C_AMB_LUZ, 164, yValor, 2, COL_GRIS, 8, sinDato);
+    campo(C_AMB_LUZ_E, 274, yValor + 4, 1, COL_GRIS, 6, "");
+  }
+
+  // Graficas: solo si hay muestra nueva, cambio el minuto o se invalido la pantalla
+  uint32_t minuto = (ahoraEpoch ? ahoraEpoch : ahora / 1000) / 60;
+  if (!graficaValida || graficaVersion != d.historial.version() || graficaMinuto != minuto) {
+    uint32_t ref = ahoraEpoch;
+    if (!ref && d.historial.ultima()) ref = d.historial.ultima()->epoch;   // sin reloj: la ultima = ahora
+    uint16_t colT = viejo ? COL_GRIS : COL_AMARILLO;
+    uint16_t colL = viejo ? COL_GRIS : COL_BLANCO;
+    int yG = Y_CONTENIDO + 40;
+    grafica(6, yG, 150, ALTO_CONT - 44, d.historial, false, ref, colT, sinDatoGrafica);
+    grafica(164, yG, 150, ALTO_CONT - 44, d.historial, true, ref, colL, sinDatoGrafica);
+    graficaVersion = d.historial.version();
+    graficaMinuto = minuto;
+    graficaValida = true;
+  }
+}
+
 void actualizar(int pestana, Modo modo, const Compartido& c, uint32_t ahora) {
   if (modo == Modo::SOS) return;
 
@@ -310,6 +465,7 @@ void actualizar(int pestana, Modo modo, const Compartido& c, uint32_t ahora) {
   campo(C_BLE_TITULO, 262, 8, 1, colorEstado(c.estado), 9, t, COL_VERDE_OSC);
 
   if (pestana == P_ESTADO) contenidoEstado(c, ahora);
+  else if (pestana == P_AMBIENTE) contenidoAmbiente(c, ahora);
 }
 
 // ---------- SOS ----------
