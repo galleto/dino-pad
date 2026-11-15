@@ -78,6 +78,11 @@ la fuente contra el dispositivo físico, toque con dos dedos en un celular real.
 - H `MapaPage.jsx`: radar de Jezero (coordenadas de `dinopad/maquina.js`).
 - I `Intro.jsx`, `Presentacion.jsx`, `sonido.js`.
 
+## Verificación adicional (15/11/2026)
+- Ruta `live` probada con un backend de prueba (`~/.cache/dinopad-pw/mock.mjs` + `live.mjs`).
+- Capturas de celular de D, G y H revisadas; cabecera en celular corregida (la píldora se cortaba).
+- La insignia EN VIVO aclara que solo las lecturas vienen del backend; estado, ambiente y nodos siguen DEMO.
+
 ## Pendiente / ideas
 - Probar con backend real (EN VIVO, SOS, alerta de radiación) y con el dispositivo.
 - Confirmar las 4 fuentes no leídas y las referencias de Mars24.

@@ -57,7 +57,10 @@ Ningún requisito queda en "falta". El 12 queda parcial a propósito: no se cita
 | Funciona sin internet | **cumple**: probado con el service worker y la red cortada |
 
 ### Sin comprobar (decirlo en la demo si preguntan)
-- Backend real: `source: "live"`, insignia "EN VIVO", historial remoto, SOS real y alerta real de radiación.
+- Backend del equipo y dispositivo reales. La ruta `live` del frontend SÍ se probó, pero contra un backend
+  de prueba que imita el contrato (`~/.cache/dinopad-pw/mock.mjs`, fuera del repo): píldora EN VIVO, rótulos
+  REAL, insignia EN VIVO del DINO PAD, historial remoto, banner SOS y su reconocimiento, y modo tormenta por
+  una alerta de radiación. Falta repetirlo con el backend y el hardware de verdad.
 - Vista 3D con WebGL (la prueba no tiene WebGL), lectura en voz alta y sonidos (sin audio).
 - Fidelidad de la fuente del gemelo contra el dispositivo; toque con dos dedos en celular real.
 - 60 fps: no se midió; las animaciones son CSS/SVG/canvas ligeros y se pausan con movimiento reducido.

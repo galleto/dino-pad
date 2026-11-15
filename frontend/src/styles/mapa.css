@@ -34,3 +34,5 @@
 .mapa-l-dist b { color: var(--green); font-size: var(--t-2xl); font-weight: 500; text-shadow: var(--glow-soft); }
 .mapa-l-estado { color: var(--st); font-size: var(--t-xs); text-align: right; }
 @media (max-width: 1000px) { .mapa-pagina { grid-template-columns: minmax(0, 1fr); gap: 20px; } .mapa { max-height: none; } }
+.mapa-l-estado::before { margin-right: 2px; }
+@media (max-width: 720px) { .mapa-nombre { font-size: 17px; } .mapa-escala { font-size: 14px; } .mapa-rumbo { font-size: 18px; } }

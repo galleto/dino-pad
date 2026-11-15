@@ -233,7 +233,7 @@ export default function DinoPadPage() {
         <div className="dp-lado">
           <div className={`dp-insignia${enVivo ? ' is-vivo' : ''}`} role="status">
             {enVivo
-              ? <><strong>EN VIVO desde el DINO PAD</strong><span>hace {Math.max(0, Math.round((ahora - vitalWeb.ultimaT) / 1000))} s</span></>
+              ? <><strong>EN VIVO desde el DINO PAD</strong><span>lectura real recibida por el backend hace {Math.max(0, Math.round((ahora - vitalWeb.ultimaT) / 1000))} s; estado, ambiente y nodos siguen siendo DEMO</span></>
               : <><strong>SIMULADO</strong><span>no llegan mensajes reales del dispositivo; todo lo que ves aquí es DEMO</span></>}
           </div>
           {demoAuto && <p className="dp-demo-auto">DEMO AUTO: el menú se recorre solo, con el mismo guion que el firmware.</p>}

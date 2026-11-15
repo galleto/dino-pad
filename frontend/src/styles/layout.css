@@ -213,3 +213,11 @@
 .pres-progreso { position: absolute; inset: auto 0 0; height: 3px; background: var(--green); transform-origin: left; animation: intro-carga linear both; }
 @media (max-width: 720px) { .presentacion { bottom: 64px; flex-wrap: wrap; gap: 8px; } .presentacion p { flex-basis: 100%; order: 3; font-size: var(--t-md); } }
 @media (prefers-reduced-motion: reduce) { .pres-progreso { display: none; } }
+@media (max-width: 720px) {
+  .titlebar { gap: 8px; }
+  .topbar-title { min-width: 0; }
+  .topbar-title h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .clave-origen > summary { padding: 4px 6px; }
+  .clave-iconos { gap: 3px; }
+  .connection-pill { gap: 5px; padding: 4px 6px; font-size: 10px; letter-spacing: 0; }
+}
