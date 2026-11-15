@@ -3,6 +3,7 @@ import { useVitals } from './hooks/useVitals';
 import { useConnection } from './hooks/useConnection';
 import { AlertsPage, CrewPage, EmergencyPage, EmptyPage, HistoryPage, LabPage, MonitorPage, RisksPage, TrendsPage } from './components/Pages';
 import Starfield from './components/Starfield';
+import { ClaveOrigen } from './components/Origen';
 import './styles/tokens.css';
 import './styles/layout.css';
 import './styles/components.css';
@@ -86,27 +87,28 @@ function App() {
   return (
     <div className="app-shell scanlines">
       <Starfield />
-      <div className="orbital-grid" aria-hidden="true" />
-      <aside className="sidebar" aria-label="Navegación principal">
-        <a className="brand" href="#/monitoreo" aria-label="Dinopad, ir a Monitoreo">
-          <span className="brand-mark" aria-hidden="true">D</span>
-          <span className="brand-copy"><strong>DINOPAD</strong><small>SISTEMA DE SALUD ESPACIAL</small></span>
-        </a>
-        <div className="nav-caption">CENTRO DE MISIÓN</div>
-        <nav className="nav-list">
-          {NAV_ITEMS.map(([id, number, label]) => (
-            <a key={id} href={`#/${id}`} className={`nav-link${route === id ? ' active' : ''}`} aria-label={label} aria-current={route === id ? 'page' : undefined}>
-              <span className="nav-number">{number}</span><span className="nav-label">{label}</span>
-            </a>
-          ))}
-        </nav>
-        <div className="sidebar-bottom"><span className="status-dot" /> SISTEMA OPERATIVO <small>CONTROL DE MISIÓN · 2026</small></div>
-      </aside>
-      <div className="workspace">
-        <header className="topbar">
+      <div className="reticula" aria-hidden="true" />
+      <header className="masthead">
+        <div className="titlebar">
+          <a className="brand" href="#/monitoreo" aria-label="Dinopad, ir a Monitoreo">
+            <span className="brand-mark" aria-hidden="true">D</span>
+            <span className="brand-copy"><strong>DINOPAD</strong><small>SISTEMA DE SALUD ESPACIAL</small></span>
+          </a>
           <div className="topbar-title"><span className="eyebrow">DINOPAD / {String(NAV_ITEMS.find(([id]) => id === route)?.[0] || '').toUpperCase()}</span><h1>{PAGE_TITLES[route]}</h1></div>
-          <div className="topbar-meta"><span className={`connection-pill connection-${connectionState}`} role="status"><i /> {connectionLabel}</span>{pwaUpdateAvailable && <button className="pwa-action" onClick={() => window.location.reload()}>Nueva versión disponible, recargar</button>}{installPrompt && !appInstalled && <button className="pwa-action" onClick={installApp}>Instalable · Instalar</button>}{pwaError && <span className="pwa-status" role="status">PWA no disponible</span>}<label className="crew-chip"><span className="avatar">{activeCrew?.name?.slice(0, 1) || '—'}</span><span><select aria-label="Tripulante activo" value={activeCrew?.id || ''} onChange={(event) => setActiveCrewId(event.target.value)}>{Object.values(crew).map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</select><small>TRIPULANTE ACTIVO</small></span></label></div>
-        </header>
+          <div className="topbar-meta"><ClaveOrigen /><span className={`connection-pill connection-${connectionState}`} role="status"><i /> {connectionLabel}</span>{pwaUpdateAvailable && <button className="pwa-action" onClick={() => window.location.reload()}>Nueva versión disponible, recargar</button>}{installPrompt && !appInstalled && <button className="pwa-action" onClick={installApp}>Instalable · Instalar</button>}{pwaError && <span className="pwa-status" role="status">PWA no disponible</span>}<label className="crew-chip"><span className="avatar">{activeCrew?.name?.slice(0, 1) || '—'}</span><span><select aria-label="Tripulante activo" value={activeCrew?.id || ''} onChange={(event) => setActiveCrewId(event.target.value)}>{Object.values(crew).map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</select><small>TRIPULANTE ACTIVO</small></span></label></div>
+        </div>
+        <div className="tabbar">
+          <span className="nav-caption">CENTRO DE MISIÓN</span>
+          <nav className="nav-list" aria-label="Navegación principal">
+            {NAV_ITEMS.map(([id, number, label]) => (
+              <a key={id} href={`#/${id}`} className={`nav-link${route === id ? ' active' : ''}`} aria-label={label} aria-current={route === id ? 'page' : undefined}>
+                <span className="nav-number">{number}</span><span className="nav-label">{label}</span>
+              </a>
+            ))}
+          </nav>
+        </div>
+      </header>
+      <div className="workspace">
         {sosAlert && <div className="sos-banner" role="alert"><span className="sos-beacon" /><div><strong>ALERTA SOS RECIBIDA</strong><p>{sosAlert.message || 'Se requiere atención inmediata de la tripulación.'}</p></div><button className="button button-danger" onClick={() => acknowledgeSos(sosAlert.id)}>Reconocer SOS</button></div>}
         {synchronized && <div className="sync-notice" role="status">● Sincronizado con el backend</div>}
         {cacheWarning && <div className="cache-warning" role="status">{cacheWarning}</div>}
@@ -114,7 +116,7 @@ function App() {
           {connectionState === 'offline' && <div className="data-cached cache-banner" role="status">SIN ENLACE · Datos en caché {lastCachedAt ? `guardados ${new Date(lastCachedAt).toLocaleString('es')}` : 'sin historial local guardado'}.</div>}
           <div className="page-enter" key={route}>{route === 'monitoreo' ? <MonitorPage /> : route === 'alertas' ? <AlertsPage /> : route === 'historial' ? <HistoryPage /> : route === 'tendencias' ? <TrendsPage /> : route === 'tripulacion' ? <CrewPage /> : route === 'riesgos' ? <RisksPage /> : route === 'emergencia' ? <EmergencyPage /> : route === 'laboratorio' ? <LabPage /> : <EmptyPage title={PAGE_TITLES[route]} description="Módulo de misión." />}</div>
         </main>
-        <footer className="app-footer"><span>DINOPAD · NASA SPACE APPS 2026</span><span>Prototipo de monitoreo · No es un dispositivo médico</span></footer>
+        <footer className="app-footer"><span>DINOPAD · NASA SPACE APPS 2026</span><span className="sidebar-bottom"><span className="status-dot" /> SISTEMA OPERATIVO <small>CONTROL DE MISIÓN · 2026</small></span><span>Prototipo de monitoreo · No es un dispositivo médico</span></footer>
       </div>
     </div>
   );

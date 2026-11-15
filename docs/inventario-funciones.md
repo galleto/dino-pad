@@ -162,6 +162,16 @@ No se quitan; el rediseño los hace visibles.
 | [x] | Componente `Origen` (REAL / DEMO / REFERENCIA NASA / REGISTRO DEL USUARIO) y leyenda plegable en Monitoreo y Laboratorio | E1 | E1 |
 | [x] | `vite.config.js`: límite de 1000 kB solo para el bloque `BodyViewer3D`; el plugin avisa si otro bloque pasa de 500 kB | E1 | E1 (build sin advertencias; plugin probado con límite de 100 kB) |
 
+### Pieza A (base visual nueva, 15/11/2026)
+
+| | Elemento | Verificado en |
+|---|---|---|
+| [x] | Paleta y tipografía originales (fósforo verde); barra lateral → barra de título + pestañas; pie con "SISTEMA OPERATIVO" | A: capturas 1920 y 390 |
+| [x] | Las 7 tarjetas pasan a "canales" (mismo contenido + escala con aguja) | A: capturas |
+| [x] | Figura humana SVG con 7 zonas como vista principal; el visor 3D queda tras el botón "Vista 3D" | A: figura en capturas; 3D e interacción sin probar |
+| [x] | Leyenda de orígenes: clave compacta en la barra de título (popover) y lista en Laboratorio | A: visible; popover sin probar |
+| [x] | `what` del indicador seleccionado bajo la figura | A: código; sin probar el clic |
+
 ## 14. Estado de partida del build
 
 - `npm run build`: compila, con **1 advertencia**: el chunk de `BodyViewer3D`

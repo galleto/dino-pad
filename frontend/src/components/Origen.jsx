@@ -7,7 +7,7 @@
 //   REGISTRO DEL USUARIO dato que la persona escribe a mano en este navegador
 //                        (no viaja al backend)
 // Datos y traducción de `source`: origenes.js
-import { useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { ORIGENES, origenDeSource } from './origenes';
 
 function Icono({ tipo }) {
@@ -31,25 +31,41 @@ export default function Origen({ tipo, source, compact = false, className = '' }
   );
 }
 
-// Leyenda con los cuatro orígenes y qué significa cada uno. Plegable: abierta en
-// pantallas grandes y cerrada al inicio en el celular (los rótulos siguen visibles).
-function abiertaAlInicio() {
-  return typeof window === 'undefined' || !window.matchMedia || window.matchMedia('(min-width: 721px)').matches;
+const TIPOS = ['real', 'demo', 'nasa', 'usuario'];
+
+// Clave compacta para la barra de título: cuatro íconos y, al abrir, qué significa cada origen.
+export function ClaveOrigen() {
+  const ref = useRef(null);
+  useEffect(() => {
+    const cerrar = (e) => {
+      const el = ref.current;
+      if (el?.open && (e.key === 'Escape' || (e.type === 'pointerdown' && !el.contains(e.target)))) el.open = false;
+    };
+    document.addEventListener('pointerdown', cerrar);
+    document.addEventListener('keydown', cerrar);
+    return () => {
+      document.removeEventListener('pointerdown', cerrar);
+      document.removeEventListener('keydown', cerrar);
+    };
+  }, []);
+  return (
+    <details className="clave-origen" ref={ref}>
+      <summary aria-label="Origen de los datos: qué significa cada rótulo">
+        <span className="clave-iconos" aria-hidden="true">{TIPOS.map((t) => <span key={t} className={`clave-ico clave-ico-${t}`}><Icono tipo={t} /></span>)}</span>
+        <span className="clave-texto">Origen de los datos</span>
+      </summary>
+      <div className="clave-popover"><LeyendaOrigen /></div>
+    </details>
+  );
 }
 
+// Lista con los cuatro orígenes y qué significa cada uno.
 export function LeyendaOrigen({ className = '' }) {
-  const [abierta, setAbierta] = useState(abiertaAlInicio);
   return (
-    <details className={`panel leyenda-origen${className ? ` ${className}` : ''}`} open={abierta} onToggle={(e) => setAbierta(e.currentTarget.open)}>
-      <summary>
-        <strong>ORIGEN DE LOS DATOS</strong>
-        <span className="leyenda-resumen" aria-hidden="true">{['real', 'demo', 'nasa', 'usuario'].map((t) => <Origen key={t} tipo={t} compact />)}</span>
-      </summary>
-      <div className="leyenda-items">
-        {['real', 'demo', 'nasa', 'usuario'].map((t) => (
-          <div key={t}><Origen tipo={t} compact /><span>{ORIGENES[t].detalle}</span></div>
-        ))}
-      </div>
-    </details>
+    <dl className={`leyenda-origen${className ? ` ${className}` : ''}`}>
+      {TIPOS.map((t) => (
+        <div key={t}><dt><Origen tipo={t} /></dt><dd>{ORIGENES[t].detalle}</dd></div>
+      ))}
+    </dl>
   );
 }

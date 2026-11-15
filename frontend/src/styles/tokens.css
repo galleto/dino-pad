@@ -1,105 +1,89 @@
 /* ============================================================
-   tokens.css · Sistema de diseño DINO PAD (control de misión)
-   Fuentes empaquetadas en el build (funcionan sin internet):
-   Chakra Petch (interfaz) y JetBrains Mono (datos), licencia OFL.
-   Verde / ámbar / rojo son SOLO del semáforo de salud.
-   El cian es el acento de la interfaz.
+   tokens.css · DINO PAD, terminal de misión en fósforo verde.
+   Paleta ORIGINAL de origin/main (ver docs/paleta-original.md).
+   Ámbar y rojo son SOLO del semáforo de salud.
+   Una sola familia monoespaciada, empaquetada en el build (sin internet).
    ============================================================ */
-@import '@fontsource/chakra-petch/latin-400.css';
-@import '@fontsource/chakra-petch/latin-500.css';
-@import '@fontsource/chakra-petch/latin-600.css';
-@import '@fontsource/chakra-petch/latin-700.css';
 @import '@fontsource/jetbrains-mono/latin-400.css';
 @import '@fontsource/jetbrains-mono/latin-500.css';
 @import '@fontsource/jetbrains-mono/latin-600.css';
+@import '@fontsource/jetbrains-mono/latin-700.css';
 
 :root {
-  /* Tipografía */
-  --font-ui: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
   --mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
 
-  /* Superficies: espacio profundo + vidrio */
-  --bg: #04060c;
-  --bg-raised: #070c17;
-  --panel: rgba(13, 21, 38, 0.66);
-  --panel-solid: #0a1222;
-  --panel-hi: rgba(22, 35, 60, 0.72);
-  --glass-blur: 14px;
-  --line: rgba(130, 170, 230, 0.14);
-  --line-bright: rgba(120, 200, 255, 0.32);
+  /* Superficies (origin/main) */
+  --bg: #080d0a;
+  --bg-raised: #0c140f;
+  --panel: #0e1711;
+  --panel-hi: #111d14;
+  --field: #0a110c;
+  --line: #23332a;
+  --line-bright: #38503d;
 
   /* Texto */
-  --text: #e7eef8;
-  --muted: #8d9db6;
-  --faint: #5a6a84;
+  --text: #d8e6d9;
+  --muted: #84958a;
 
-  /* Acento de interfaz */
-  --accent: #5ee7ff;
-  --accent-dim: #2aa7c4;
-  --accent-tint: rgba(94, 231, 255, 0.08);
-  --accent-glow: rgba(94, 231, 255, 0.35);
-  --violet: #9d8bff;
+  /* Fósforo (identidad) y semáforo */
+  --green: #a4ff70;
+  --green-dim: #5da64a;
+  --green-tint: rgba(164, 255, 112, 0.045);
+  --amber: #ffc66d;
+  --red: #ff6b63;
+  --blue: #78c9d4;
 
-  /* Semáforo de salud (no usar como decoración) */
-  --green: #46e39a;
-  --green-dim: #2c9e6c;
-  --amber: #ffa94d;
-  --red: #ff5d6c;
-  --blue: #7aa7ff;
+  /* Brillo de fósforo */
+  --glow: 0 0 14px rgba(164, 255, 112, 0.38);
+  --glow-soft: 0 0 8px rgba(164, 255, 112, 0.22);
 
-  /* Orígenes del dato (ver components/Origen.jsx) */
-  --origin-real: #5ee7ff;
-  --origin-demo: #ffe066;
-  --origin-nasa: #7aa7ff;
-  --origin-user: #c792ff;
+  /* Escala tipográfica */
+  --t-xs: 11px;
+  --t-sm: 12px;
+  --t-md: 13px;
+  --t-lg: 15px;
+  --t-xl: 19px;
+  --t-2xl: 26px;
+  --t-data: 46px;
 
-  /* Forma y movimiento */
-  --radius: 10px;
-  --radius-sm: 6px;
-  --shadow-panel: 0 10px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 
-  font-family: var(--font-ui);
+  font-family: var(--mono);
+  font-size: var(--t-md);
+  line-height: 1.5;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
+  font-variant-numeric: tabular-nums;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-  background:
-    radial-gradient(1200px 700px at 78% -10%, rgba(64, 120, 255, 0.13), transparent 60%),
-    radial-gradient(900px 600px at -10% 110%, rgba(94, 231, 255, 0.07), transparent 60%),
-    var(--bg);
-  background-attachment: fixed;
-  color: var(--text);
-}
+body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--bg); color: var(--text); }
+h1, h2, h3, h4, p { margin: 0; }
 button, select, input { font: inherit; }
 button, a, select { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; }
-button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focus-visible {
-  outline: 2px solid var(--accent);
+button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--green);
   outline-offset: 3px;
 }
-::selection { color: #031016; background: var(--accent); }
+::selection { color: #081009; background: var(--green); }
 
-/* Números y datos en monoespaciada con cifras tabulares */
-.num, .vital-reading strong, .trend-value, .relation-list strong, .axis-label, time {
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
-}
+/* Estado del semáforo: color + glifo (no solo color) */
+.st-ok { --st: var(--green); }
+.st-warn { --st: var(--amber); }
+.st-crit { --st: var(--red); }
+.st-nodata { --st: var(--muted); }
+.st-glyph::before { display: inline-block; width: 1.2em; color: var(--st); content: "●"; }
+.st-warn.st-glyph::before, .st-warn .st-glyph::before { content: "▲"; }
+.st-crit.st-glyph::before, .st-crit .st-glyph::before { content: "■"; }
+.st-nodata.st-glyph::before, .st-nodata .st-glyph::before { content: "○"; }
 
-@keyframes page-enter {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
-}
-.page-enter { animation: page-enter 0.45s var(--ease) both; }
+@keyframes page-enter { from { opacity: 0; } to { opacity: 1; } }
+.page-enter { animation: page-enter 0.25s ease-out both; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }

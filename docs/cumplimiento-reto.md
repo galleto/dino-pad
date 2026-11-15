@@ -9,6 +9,10 @@ Se actualiza al cerrar cada etapa (columna "Después").
 La etapa es visual (paleta, tipografía, vidrio, fondo, rótulos de origen); el semáforo
 (6) y las gráficas (7) siguen cumpliendo con el nuevo estilo.
 
+**Tras la pieza A (base visual, 15/11/2026):** ningún requisito cambia a "cumple". El 9
+(figura humana) sigue **parcial**: ya hay figura SVG con zonas que toman el color del
+semáforo, pero falta el dossier con la función de cada zona (pieza B).
+
 ## Matriz
 
 | # | Requisito del reto | Dónde se cumple hoy | Estado | Qué falta | Después |

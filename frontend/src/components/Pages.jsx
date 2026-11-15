@@ -76,12 +76,12 @@ function HistoryChart({ readings, indicator, crew }) {
   return (
     <div className="history-graph-wrap">
       <svg className="history-graph" viewBox="0 0 900 250" role="img" aria-label={`Historial de ${indicator.name}; banda de rango normal y línea base`}>
-        <rect x="44" y={bandTop} width="820" height={Math.max(bandBottom - bandTop, 1)} style={{ fill: 'rgba(70, 227, 154, 0.07)' }} />
-        <line x1="44" x2="864" y1={bandTop} y2={bandTop} style={{ stroke: 'rgba(70, 227, 154, 0.45)' }} strokeDasharray="4 5" />
-        <line x1="44" x2="864" y1={bandBottom} y2={bandBottom} style={{ stroke: 'rgba(70, 227, 154, 0.45)' }} strokeDasharray="4 5" />
-        {Number.isFinite(baseline) && <line x1="44" x2="864" y1={y(baseline)} y2={y(baseline)} style={{ stroke: 'var(--violet)' }} strokeDasharray="7 5" />}
-        <polyline points={points} fill="none" style={{ stroke: 'var(--accent)', filter: 'drop-shadow(0 0 4px rgba(94, 231, 255, 0.55))' }} strokeWidth="2" vectorEffect="non-scaling-stroke" />
-        {valid.map((reading, index) => <circle key={`${timestampValue(reading)}-${index}`} cx={x(index)} cy={y(Number(reading.value))} r={hovered === index ? 5 : 2.5} style={{ fill: hovered === index ? 'var(--text)' : 'var(--accent)' }} onMouseEnter={() => setHovered(index)} onMouseLeave={() => setHovered(null)} onFocus={() => setHovered(index)} onBlur={() => setHovered(null)} tabIndex="0" aria-label={`${Number(reading.value)} ${indicator.unit} · ${etiquetaOrigen(reading.source)} · ${new Date(timestampValue(reading)).toLocaleString('es')}`}><title>{Number(reading.value)} {indicator.unit} · {etiquetaOrigen(reading.source)} · {new Date(timestampValue(reading)).toLocaleString('es')}</title></circle>)}
+        <rect x="44" y={bandTop} width="820" height={Math.max(bandBottom - bandTop, 1)} style={{ fill: 'rgba(164, 255, 112, 0.06)' }} />
+        <line x1="44" x2="864" y1={bandTop} y2={bandTop} style={{ stroke: '#4a7142' }} strokeDasharray="4 5" />
+        <line x1="44" x2="864" y1={bandBottom} y2={bandBottom} style={{ stroke: '#4a7142' }} strokeDasharray="4 5" />
+        {Number.isFinite(baseline) && <line x1="44" x2="864" y1={y(baseline)} y2={y(baseline)} style={{ stroke: 'var(--text)', opacity: .55 }} strokeDasharray="7 5" />}
+        <polyline points={points} fill="none" style={{ stroke: 'var(--green)', filter: 'drop-shadow(0 0 4px rgba(164, 255, 112, 0.5))' }} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+        {valid.map((reading, index) => <circle key={`${timestampValue(reading)}-${index}`} cx={x(index)} cy={y(Number(reading.value))} r={hovered === index ? 5 : 2.5} style={{ fill: hovered === index ? 'var(--text)' : 'var(--green)' }} onMouseEnter={() => setHovered(index)} onMouseLeave={() => setHovered(null)} onFocus={() => setHovered(index)} onBlur={() => setHovered(null)} tabIndex="0" aria-label={`${Number(reading.value)} ${indicator.unit} · ${etiquetaOrigen(reading.source)} · ${new Date(timestampValue(reading)).toLocaleString('es')}`}><title>{Number(reading.value)} {indicator.unit} · {etiquetaOrigen(reading.source)} · {new Date(timestampValue(reading)).toLocaleString('es')}</title></circle>)}
         <text x="44" y="238" className="axis-label">{new Date(timestampValue(valid[0])).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}</text>
         <text x="864" y="238" textAnchor="end" className="axis-label">{new Date(timestampValue(valid.at(-1))).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}</text>
         <text x="8" y={bandTop + 4} className="axis-label">{range[1]}</text><text x="8" y={bandBottom + 4} className="axis-label">{range[0]}</text>
@@ -267,6 +267,8 @@ export function EmergencyPage() {
   );
 }
 
+const SIGLAS = { hr: 'FC', spo2: 'SpO₂', temp: 'Temp', bp: 'PA', glu: 'Glu', sleep: 'Sueño', mood: 'Ánimo' };
+
 export function LabPage() {
   const data = usePageData();
   const indicators = Object.values(data.indicators);
@@ -277,15 +279,48 @@ export function LabPage() {
     return readAt > 0 && alert._receivedAt >= readAt ? alert._receivedAt - readAt : null;
   }).filter((value) => value !== null);
   const latency = measured.length ? Math.round(measured.reduce((sum, value) => sum + value, 0) / measured.length) : null;
+  const tagConexion = data.connectionState === 'live' ? 'DATOS DE BACKEND' : data.connectionState === 'offline' ? 'SIN ENLACE' : 'SIMULADOR LOCAL';
   return (
-    <div className="page-grid">
-      <LeyendaOrigen />
-      <div className="section-heading"><div><span className="eyebrow">TRANSPARENCIA Y VALIDACIÓN</span><h2>Laboratorio</h2><p>Entorno de demostración; revisa el origen de cada lectura y sus límites.</p></div><span className={`tag ${data.connectionState === 'live' ? 'tag-live' : 'tag-simulated'}`}>{data.connectionState === 'live' ? 'DATOS DE BACKEND' : data.connectionState === 'offline' ? 'SIN ENLACE' : 'SIMULADOR LOCAL'}</span></div>
-      <section className="panel lab-panel"><div className="panel-heading"><div><span className="eyebrow">ESCENARIOS SINTÉTICOS</span><h2>Activar escenario</h2></div><span className="tag tag-simulated">NO ES TELEMETRÍA REAL</span></div><p className="lab-copy">Los perfiles y las lecturas sintéticas se derivan de los datos de demostración del proyecto. Los escenarios solo afectan al simulador local.</p><div className="scenario-grid">{Object.values(data.scenarios).map((scenario) => <button key={scenario.id} className={`scenario-button${data.scenario === scenario.id ? ' selected' : ''}`} onClick={() => data.setScenario(scenario.id)} aria-pressed={data.scenario === scenario.id}><strong>{scenario.name}</strong><small>{Object.keys(scenario.effects || {}).length ? `${Object.keys(scenario.effects).length} indicadores con efectos` : 'Sin perturbaciones añadidas'}</small></button>)}</div><p className="scenario-active">ESCENARIO SELECCIONADO: <strong>{data.scenarios[data.scenario]?.name || 'Día normal'}</strong></p></section>
-      <section className="panel lab-panel"><div className="panel-heading"><div><span className="eyebrow">RESILIENCIA</span><h2>Prueba de pérdida de enlace</h2></div><span className={`tag ${data.forceOffline ? 'tag-danger' : 'tag-live'}`}>{data.forceOffline ? 'DESCONEXIÓN FORZADA' : 'ENLACE AUTOMÁTICO'}</span></div><p className="lab-copy">Fuerza el modo sin enlace para comprobar la caché local. Al reactivarlo, el frontend busca el backend de nuevo cada 5 segundos.</p><button className={`button ${data.forceOffline ? 'button-primary' : 'button-danger'}`} onClick={() => data.setForceOffline((value) => !value)}>{data.forceOffline ? 'Restablecer enlace' : 'Simular pérdida de conexión'}</button>{data.forceOffline && <div className="data-cached">Vista sin enlace · datos en caché guardados {data.lastCachedAt ? new Date(data.lastCachedAt).toLocaleString('es') : 'sin marca de tiempo disponible'}.</div>}</section>
-      <section className="panel lab-panel"><div className="panel-heading"><div><span className="eyebrow">APLICACIÓN INSTALABLE</span><h2>Prueba de la PWA</h2></div><span className="tag">SIN CONEXIÓN</span></div><p className="lab-copy">Ejecuta <code>npm run build</code> y <code>npm run preview</code>, abre la app una vez con conexión y luego desconéctate y recarga para comprobar la shell guardada. La instalación requiere localhost o HTTPS.</p></section>
-      <div className="lab-metrics"><article className="panel lab-metric"><span>Origen de lecturas recientes</span><strong>{readings.length ? [...new Set(readings.map((reading) => etiquetaOrigen(reading.source)))].join(' · ') : 'Sin lecturas'}</strong></article><article className="panel lab-metric"><span>Lectura → alerta recibida</span><strong>{latency !== null ? `${latency} ms promedio · ${measured.length} eventos` : 'No medible todavía'}</strong><small>Medida en esta sesión; depende de las marcas temporales disponibles.</small></article></div>
-      <section className="panel lab-panel limitations"><span className="eyebrow">LÍMITES DE VALIDACIÓN</span><h2>Falsos positivos y negativos</h2><p>Los rangos y reglas son orientativos para una demostración. El ruido, sensores descalibrados, movimiento, lecturas ausentes o perfiles no representativos pueden provocar alertas incorrectas o no detectar un evento. La explicación automática es informativa, no es un diagnóstico médico. No utilices el prototipo para tomar decisiones clínicas.</p></section>
+    <div className="lab">
+      <div className="section-heading"><div><span className="eyebrow">TRANSPARENCIA Y VALIDACIÓN</span><h2>Laboratorio</h2><p>Entorno de demostración; revisa el origen de cada lectura y sus límites.</p></div><span className={`tag ${data.connectionState === 'live' ? 'tag-live' : 'tag-simulated'}`}>{tagConexion}</span></div>
+      <div className="lab-layout">
+        <div className="lab-main">
+          <section className="lab-panel lab-escenarios">
+            <header className="col-head"><h2>Activar escenario <small>escenarios sintéticos</small></h2><span className="tag tag-simulated">NO ES TELEMETRÍA REAL</span></header>
+            <p className="lab-copy">Los perfiles y las lecturas sintéticas se derivan de los datos de demostración del proyecto. Los escenarios solo afectan al simulador local.</p>
+            <div className="scenario-grid">{Object.values(data.scenarios).map((scenario) => {
+              const efectos = Object.entries(scenario.effects || {});
+              return (
+                <button key={scenario.id} className={`scenario-button${data.scenario === scenario.id ? ' selected' : ''}`} onClick={() => data.setScenario(scenario.id)} aria-pressed={data.scenario === scenario.id}>
+                  <span className="scenario-led" aria-hidden="true" />
+                  <strong>{scenario.name}</strong>
+                  <small>{efectos.length ? `${efectos.length} indicadores con efectos` : 'Sin perturbaciones añadidas'}</small>
+                  <span className="scenario-efectos">{efectos.map(([id, delta]) => <span key={id}>{SIGLAS[id] || id} <b>{delta > 0 ? '+' : '−'}{Math.abs(delta)}</b></span>)}</span>
+                </button>
+              );
+            })}</div>
+            <p className="scenario-active">ESCENARIO SELECCIONADO: <strong>{data.scenarios[data.scenario]?.name || 'Día normal'}</strong></p>
+          </section>
+          <div className="lab-notas">
+            <section className="lab-panel limitations"><span className="eyebrow">LÍMITES DE VALIDACIÓN</span><h2>Falsos positivos y negativos</h2><p>Los rangos y reglas son orientativos para una demostración. El ruido, sensores descalibrados, movimiento, lecturas ausentes o perfiles no representativos pueden provocar alertas incorrectas o no detectar un evento. La explicación automática es informativa, no es un diagnóstico médico. No utilices el prototipo para tomar decisiones clínicas.</p></section>
+            <section className="lab-panel"><header className="col-head"><h2>Prueba de la PWA <small>aplicación instalable</small></h2><span className="tag">SIN CONEXIÓN</span></header><p className="lab-copy">Ejecuta <code>npm run build</code> y <code>npm run preview</code>, abre la app una vez con conexión y luego desconéctate y recarga para comprobar la shell guardada. La instalación requiere localhost o HTTPS.</p></section>
+          </div>
+        </div>
+        <aside className="lab-aside">
+          <section className="lab-panel lab-enlace">
+            <header className="col-head"><h2>Prueba de pérdida de enlace <small>resiliencia</small></h2></header>
+            <span className={`tag ${data.forceOffline ? 'tag-danger' : 'tag-live'}`}>{data.forceOffline ? 'DESCONEXIÓN FORZADA' : 'ENLACE AUTOMÁTICO'}</span>
+            <p className="lab-copy">Fuerza el modo sin enlace para comprobar la caché local. Al reactivarlo, el frontend busca el backend de nuevo cada 5 segundos.</p>
+            <button className={`button ${data.forceOffline ? 'button-primary' : 'button-danger'}`} onClick={() => data.setForceOffline((value) => !value)}>{data.forceOffline ? 'Restablecer enlace' : 'Simular pérdida de conexión'}</button>
+            {data.forceOffline && <div className="data-cached">Vista sin enlace · datos en caché guardados {data.lastCachedAt ? new Date(data.lastCachedAt).toLocaleString('es') : 'sin marca de tiempo disponible'}.</div>}
+          </section>
+          <div className="lab-metrics">
+            <article className="lab-metric"><span>Origen de lecturas recientes</span><strong>{readings.length ? [...new Set(readings.map((reading) => etiquetaOrigen(reading.source)))].join(' · ') : 'Sin lecturas'}</strong></article>
+            <article className="lab-metric"><span>Lectura → alerta recibida</span><strong>{latency !== null ? `${latency} ms promedio · ${measured.length} eventos` : 'No medible todavía'}</strong><small>Medida en esta sesión; depende de las marcas temporales disponibles.</small></article>
+          </div>
+          <section className="lab-panel"><header className="col-head"><h2>Origen de los datos</h2></header><LeyendaOrigen /></section>
+        </aside>
+      </div>
     </div>
   );
 }

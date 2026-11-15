@@ -23,8 +23,8 @@ function crearEstrellas(w, h) {
         fase: Math.random() * Math.PI * 2,
         vel: capa.vel,
         capa: c,
-        // Unas pocas estrellas con tinte cian o violeta
-        tinte: Math.random() < 0.12 ? (Math.random() < 0.5 ? '160,235,255' : '190,175,255') : '230,238,250',
+        // Unas pocas estrellas con tinte verde fósforo
+        tinte: Math.random() < 0.12 ? (Math.random() < 0.5 ? '164,255,112' : '216,230,217') : '200,216,203',
       });
     }
   });
