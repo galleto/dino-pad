@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import sys
+import hmac
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -11,7 +12,8 @@ from typing import Optional
 BACKEND_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BACKEND_DIR.parent))
 
-from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel, ValidationError
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
@@ -182,6 +184,7 @@ def health_check():
         "ws_alerts_clients": len(ws_manager.alerts_connections),
         "ws_device_clients": len(ws_manager.device_connections),
         "devices": len(get_device_snapshot()["status"]),
+        "device_ingest": bool(settings.device_token),   # entrada HTTPS del DINO PAD activa
     }
 
 
@@ -226,6 +229,51 @@ def api_alerts(
 def get_device_snapshot() -> dict:
     from backend.db import _memory_devices
     return {"status": list(_memory_devices.values()), "ui": list(_ultimo_ui.values())}
+
+
+class MensajeDispositivo(BaseModel):
+    tema: str      # dinopad/vitals | dinopad/alertas | dinopad/estado | dinopad/ui
+    datos: dict    # el mismo JSON que iría por MQTT
+
+
+class LoteDispositivo(BaseModel):
+    mensajes: list[MensajeDispositivo]
+
+
+_RUTAS_INGESTA = {
+    "dinopad/vitals": (VitalReading, lambda m: handle_incoming_vital(m)),
+    "dinopad/alertas": (AlertMessage, lambda m: handle_incoming_alert_msg(m)),
+    "dinopad/estado": (DeviceStatus, lambda m: handle_device_status(m)),
+    "dinopad/ui": (DeviceUi, lambda m: handle_device_ui(m)),
+}
+
+
+@app.post("/api/device/ingest", tags=["Dispositivo"])
+def api_device_ingest(lote: LoteDispositivo, x_device_token: str = Header(default="")):
+    """Entrada por HTTPS del DINO PAD (sin broker MQTT): un lote de mensajes con los mismos
+    temas y JSON que MQTT. Pasa por los mismos manejadores (reglas, SOS, WebSockets, base).
+    Requiere la cabecera X-Device-Token = DEVICE_TOKEN."""
+    if not settings.device_token:
+        raise HTTPException(status_code=403, detail="Ingesta apagada: falta DEVICE_TOKEN en el servidor")
+    if not hmac.compare_digest(x_device_token.encode(), settings.device_token.encode()):
+        raise HTTPException(status_code=401, detail="X-Device-Token inválido")
+    if len(lote.mensajes) > 50:
+        raise HTTPException(status_code=413, detail="Máximo 50 mensajes por lote")
+    aceptados, rechazados = 0, []
+    for i, m in enumerate(lote.mensajes):
+        ruta = _RUTAS_INGESTA.get(m.tema)
+        if not ruta:
+            rechazados.append({"i": i, "error": f"tema desconocido: {m.tema}"})
+            continue
+        modelo, manejar = ruta
+        try:
+            manejar(modelo.model_validate(m.datos))
+            aceptados += 1
+        except ValidationError as ve:
+            rechazados.append({"i": i, "error": ve.errors(include_url=False)[:2]})
+    if rechazados:
+        logger.warning("[INGESTA] %d aceptados, %d rechazados: %s", aceptados, len(rechazados), rechazados[:3])
+    return {"aceptados": aceptados, "rechazados": rechazados}
 
 
 @app.get("/api/device/latest", tags=["Dispositivo"])

@@ -15,6 +15,7 @@ import json
 import sys
 import threading
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -31,6 +32,7 @@ PUERTO_HTTP = 8090
 BASE = f"http://127.0.0.1:{PUERTO_HTTP}"
 WS = f"ws://127.0.0.1:{PUERTO_HTTP}"
 ORIGEN_PAGINA = "https://dinopad-prueba.pages.dev"
+TOKEN = "clave-de-prueba"
 
 # Copias literales del formato de red_mqtt.cpp (valores de ejemplo)
 VITAL_SIN_HORA = '{"crewId":"comandante","indicatorId":"hr","value":76,"unit":"lpm","timestamp":0,"source":"simulated","quality":"ok"}'
@@ -104,11 +106,32 @@ async def flujo():
         salud = json.load(r)
     ok(salud.get("devices") == 1, "/health cuenta los dispositivos")
 
+    # Entrada por HTTPS (sin broker): mismo formato, con la clave del dispositivo
+    def post(cuerpo, token):
+        req = urllib.request.Request(f"{BASE}/api/device/ingest", data=json.dumps(cuerpo).encode(), method="POST",
+                                     headers={"Content-Type": "application/json", "X-Device-Token": token})
+        try:
+            with urllib.request.urlopen(req) as r:
+                return r.status, json.load(r)
+        except urllib.error.HTTPError as e:
+            return e.code, None
+    lote = {"mensajes": [{"tema": "dinopad/estado", "datos": {**json.loads(ESTADO), "batteryPct": 55}},
+                         {"tema": "dinopad/vitals", "datos": json.loads(VITAL_SIN_HORA)},
+                         {"tema": "dinopad/nada", "datos": {}}]}
+    ok(post(lote, "mala")[0] == 401, "ingesta HTTPS con clave incorrecta -> 401")
+    async with websockets.connect(f"{WS}/ws/device") as wd3:
+        await asyncio.wait_for(wd3.recv(), 2); await asyncio.wait_for(wd3.recv(), 2)   # foto inicial
+        codigo, res = post(lote, TOKEN)
+        ok(codigo == 200 and res["aceptados"] == 2 and len(res["rechazados"]) == 1, f"ingesta HTTPS: 2 aceptados, 1 tema desconocido rechazado ({res})")
+        st = await recibir(wd3, lambda m: m.get("type") == "status")
+        ok(st is not None and st["batteryPct"] == 55, "lo que entra por HTTPS sale por /ws/device")
+
 
 def main():
     settings.mqtt_host = "127.0.0.1"
     settings.mqtt_port = PUERTO_MQTT
     settings.mqtt_tls = False
+    settings.device_token = TOKEN
     settings.cors_origins = ORIGEN_PAGINA   # antes de importar la app (el CORS se arma al importar)
     settings.database_url = settings.timescale_service_url = ""
 

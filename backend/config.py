@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     # "https://dinopad.pages.dev,https://dinopad.midominio.tech")
     cors_origins: str = ""
 
+    # Clave del DINO PAD para POST /api/device/ingest (el ESP32 la manda en X-Device-Token).
+    # Vacía = la ruta queda apagada.
+    device_token: str = ""
+
     @property
     def cors_origin_list(self) -> list:
         return [o.strip().rstrip("/") for o in self.cors_origins.split(",") if o.strip()]
@@ -65,6 +69,7 @@ class Settings(BaseSettings):
             "has_database_url": bool(self.effective_database_url),
             "node_env": self.node_env,
             "cors_origins": self.cors_origin_list,
+            "has_device_token": bool(self.device_token),
         }
 
 

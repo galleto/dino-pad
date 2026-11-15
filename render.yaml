@@ -1,8 +1,8 @@
 # Render Blueprint: backend FastAPI de DINO PAD (plan gratis).
 # Render > New > Blueprint > este repo y rama. Los valores con "sync: false" los pide al crear
 # el servicio (no se guardan en el repo).
-# Plan gratis: se duerme tras 15 min sin visitas HTTP y tarda ~1 min en despertar. Mientras
-# duerme no escucha MQTT: abre la página un par de minutos antes de la demo.
+# Plan gratis: se duerme tras 15 min sin peticiones HTTP y tarda ~1 min en despertar. Mientras
+# el DINO PAD está mandando datos (cada pocos segundos) no se duerme.
 services:
   - type: web
     name: dinopad-backend
@@ -16,16 +16,10 @@ services:
         value: 3.12.8
       - key: NODE_ENV
         value: production
-      - key: MQTT_HOST            # HiveMQ Cloud: Cluster > Overview > Host
-        sync: false
-      - key: MQTT_PORT
-        value: "8883"
-      - key: MQTT_TLS
-        value: "true"
-      - key: MQTT_USER            # credencial con permiso de SUSCRIBIRSE (dinopad-backend)
-        sync: false
-      - key: MQTT_PASSWORD
-        sync: false
+      # El DINO PAD manda sus datos por HTTPS a /api/device/ingest con esta clave (Render la
+      # genera; cópiala de Environment al secretos.h del firmware). No hace falta broker MQTT.
+      - key: DEVICE_TOKEN
+        generateValue: true
       - key: CORS_ORIGINS         # la página publicada (y el dominio propio, cuando exista)
         value: https://dino-pad.pages.dev,https://dinopad.uncangrejocontrolamisfinanzas.tech
       - key: GEMINI_APIKEY        # opcional: explicaciones de las alertas
