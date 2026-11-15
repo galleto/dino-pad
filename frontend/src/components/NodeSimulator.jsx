@@ -51,6 +51,7 @@ function NodeSimulator({ map, body }) {
   const [newNodeType, setNewNodeType] = useState('astronauta');
   const [turf, setTurf] = useState(null);
   const [turfError, setTurfError] = useState('');
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const panelElement = useRef(null);
   const nameSequence = useRef({ tierra: 4, luna: 4, marte: 4 });
   const nodes = nodesByBody[body] || EMPTY_NODES;
@@ -169,10 +170,25 @@ function NodeSimulator({ map, body }) {
 
   useEffect(() => {
     if (!map || !window.L || !panelElement.current) return undefined;
-    window.L.DomEvent.disableClickPropagation(panelElement.current);
     window.L.DomEvent.disableScrollPropagation(panelElement.current);
     return undefined;
   }, [map]);
+
+  useEffect(() => {
+    if (!map) return undefined;
+    const invalidateSize = () => map.invalidateSize({ pan: false });
+    const animationFrame = window.requestAnimationFrame(invalidateSize);
+    const resizeObserver = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(invalidateSize);
+    resizeObserver?.observe(map.getContainer());
+    window.addEventListener('resize', invalidateSize);
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', invalidateSize);
+    };
+  }, [map, isCollapsed]);
 
   const changeGlobalRadius = (value) => {
     setGlobalRadii((previous) => ({ ...previous, [body]: value }));
@@ -210,15 +226,26 @@ function NodeSimulator({ map, body }) {
   );
 
   return (
-    <aside ref={panelElement} className="node-sim-panel" aria-label="Simulador de nodos">
+    <aside ref={panelElement} className={`node-sim-panel${isCollapsed ? ' is-collapsed' : ''}`} aria-label="Simulador de nodos">
       <header className="node-sim-heading">
         <div>
           <span className="eyebrow">RED DE COMUNICACIÓN</span>
           <h3>Simulador de nodos</h3>
         </div>
         <span className="tag tag-simulated">VALORES SIMULADOS</span>
+        <button
+          type="button"
+          className="node-sim-toggle"
+          onClick={() => setIsCollapsed((value) => !value)}
+          aria-label={isCollapsed ? 'Desplegar simulador de nodos' : 'Plegar simulador de nodos'}
+          aria-controls="node-sim-content"
+          aria-expanded={!isCollapsed}
+        >
+          {isCollapsed ? '+' : '−'}
+        </button>
       </header>
-      <div className="node-sim-controls">
+      <div id="node-sim-content" className="node-sim-body" hidden={isCollapsed}>
+        <div className="node-sim-controls">
         <label>
           <span>Radio de todos los nodos <strong>{formatDistance(globalRadii[body])}</strong></span>
           <input
@@ -246,26 +273,26 @@ function NodeSimulator({ map, body }) {
           </select>
         </label>
         <p className="node-sim-hint">Haz clic en el mapa para agregar un nodo.</p>
-      </div>
+          </div>
 
-      <div className="node-sim-metrics">
+          <div className="node-sim-metrics">
         <div><small>Suma simple</small><strong>{analysis ? formatArea(analysis.sumAreaSquareMeters || 0) : 'Calculando…'}</strong></div>
         <div className="node-sim-union"><small>ÁREA UNIDA</small><strong>{analysis ? formatArea(analysis.unionAreaSquareMeters || 0) : 'Calculando…'}</strong></div>
         <div><small>Traslape</small><strong>{analysis ? `${(analysis.overlapPercent || 0).toLocaleString('es', { maximumFractionDigits: 1 })}%` : '—'}</strong></div>
-      </div>
-      {turfError && <p className="node-sim-error" role="alert">{turfError}</p>}
-      {analysis?.error && <p className="node-sim-error" role="alert">No se pudieron calcular las áreas: {analysis.error}</p>}
-      {!turf && !turfError && <p className="node-sim-hint" role="status">Cargando cálculo geográfico…</p>}
+          </div>
+          {turfError && <p className="node-sim-error" role="alert">{turfError}</p>}
+          {analysis?.error && <p className="node-sim-error" role="alert">No se pudieron calcular las áreas: {analysis.error}</p>}
+          {!turf && !turfError && <p className="node-sim-hint" role="status">Cargando cálculo geográfico…</p>}
 
-      <section className="node-sim-network" aria-label="Estado de la red">
+          <section className="node-sim-network" aria-label="Estado de la red">
         <div className="node-sim-section-title"><strong>Grupos conectados</strong><span>{connectedGroups.length} mallas · {isolatedIds.size} aislados</span></div>
         {connectedGroups.length ? connectedGroups.map((group, index) => (
           <p key={group.join('-')}>Malla {index + 1}: {group.map((id) => nodes.find((node) => node.id === id)?.name).filter(Boolean).join(' · ')}</p>
         )) : <p>No hay grupos de varios nodos.</p>}
         {isolatedIds.size > 0 && <p>Aislados: {nodes.filter((node) => isolatedIds.has(node.id)).map((node) => node.name).join(' · ')}</p>}
-      </section>
+        </section>
 
-      <section className="node-sim-list" aria-label="Lista de nodos">
+        <section className="node-sim-list" aria-label="Lista de nodos">
         <div className="node-sim-section-title"><strong>Nodos · {nodes.length}</strong><span>Rango efectivo ×{environmentFactor}</span></div>
         {nodes.length === 0 && <p className="node-sim-hint">Agrega nodos haciendo clic en el mapa.</p>}
         {nodes.map((node) => {
@@ -328,8 +355,9 @@ function NodeSimulator({ map, body }) {
             </article>
           );
         })}
-      </section>
-      <p className="node-sim-footnote">Radio de {BODY_RADII_KM[body].toLocaleString('es')} km · posiciones locales de ejemplo</p>
+        </section>
+        <p className="node-sim-footnote">Radio de {BODY_RADII_KM[body].toLocaleString('es')} km · posiciones locales de ejemplo</p>
+      </div>
     </aside>
   );
 }
