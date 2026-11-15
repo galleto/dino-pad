@@ -1,0 +1,255 @@
+{
+  "hazards": {
+    "radiation": "Radiación espacial",
+    "isolation": "Aislamiento y confinamiento",
+    "distance": "Distancia de la Tierra",
+    "gravity": "Campos gravitatorios",
+    "environment": "Ambiente cerrado hostil"
+  },
+  "zones": {
+    "head": { "id": "head", "name": "Cabeza y cerebro" },
+    "chest": { "id": "chest", "name": "Corazón" },
+    "lungs": { "id": "lungs", "name": "Pulmones" },
+    "abdomen": { "id": "abdomen", "name": "Abdomen" },
+    "body": { "id": "body", "name": "Cuerpo completo" }
+  },
+  "indicators": {
+    "hr": {
+      "id": "hr",
+      "name": "Frecuencia cardíaca",
+      "unit": "lpm",
+      "decimals": 0,
+      "ok": [50, 90],
+      "warn": [40, 110],
+      "noise": 1.5,
+      "inertia": 0.25,
+      "cadenceMs": 2000,
+      "zone": "chest",
+      "hazards": ["gravity", "isolation"],
+      "what": "Latidos del corazón por minuto.",
+      "why": "La microgravedad redistribuye los fluidos y cambia el trabajo del corazón.",
+      "how": "Sensor óptico de la pulsera. Mide tras 5 minutos de reposo.",
+      "action": "Respira lento 5 minutos e hidrátate. Si persiste, contacta al cirujano de vuelo."
+    },
+    "spo2": {
+      "id": "spo2",
+      "name": "Oxigenación (SpO₂)",
+      "unit": "%",
+      "decimals": 0,
+      "ok": [95, 100],
+      "warn": [90, 100],
+      "noise": 0.3,
+      "inertia": 0.2,
+      "cadenceMs": 2000,
+      "zone": "lungs",
+      "hazards": ["environment"],
+      "what": "Porcentaje de oxígeno que transporta la sangre.",
+      "why": "En cabinas cerradas, un CO₂ alto o mala ventilación pueden bajarla sin que lo notes.",
+      "how": "Pulsioxímetro de dedo, mano quieta y caliente.",
+      "action": "Revisa ventilación y CO₂ del módulo y avisa a tierra de inmediato."
+    },
+    "temp": {
+      "id": "temp",
+      "name": "Temperatura",
+      "unit": "°C",
+      "decimals": 1,
+      "ok": [36.1, 37.5],
+      "warn": [35.5, 38.3],
+      "noise": 0.05,
+      "inertia": 0.1,
+      "cadenceMs": 4000,
+      "zone": "body",
+      "hazards": ["environment", "gravity"],
+      "what": "Temperatura corporal estimada.",
+      "why": "Sin gravedad el cuerpo disipa mal el calor; el esfuerzo en traje la eleva.",
+      "how": "Termómetro de frente o de oído.",
+      "action": "Reduce la actividad, hidrátate y reporta síntomas acompañantes."
+    },
+    "bp": {
+      "id": "bp",
+      "name": "Presión arterial (sistólica)",
+      "unit": "mmHg",
+      "decimals": 0,
+      "ok": [90, 130],
+      "warn": [80, 150],
+      "noise": 2,
+      "inertia": 0.15,
+      "cadenceMs": 30000,
+      "zone": "chest",
+      "hazards": ["gravity", "radiation"],
+      "what": "Presión de la sangre en las arterias al latir el corazón.",
+      "why": "Los fluidos se desplazan hacia la cabeza y alteran la regulación de la presión.",
+      "how": "Tensiómetro de brazo, sentado y relajado.",
+      "action": "Si está baja, bebe líquidos y levántate despacio. Si está alta, reduce sodio y consulta."
+    },
+    "glu": {
+      "id": "glu",
+      "name": "Glucosa",
+      "unit": "mg/dL",
+      "decimals": 0,
+      "ok": [70, 140],
+      "warn": [60, 180],
+      "noise": 3,
+      "inertia": 0.15,
+      "cadenceMs": 30000,
+      "zone": "abdomen",
+      "hazards": ["isolation", "environment"],
+      "what": "Nivel de azúcar en sangre.",
+      "why": "La nutrición limitada y el estrés alteran el metabolismo en misiones largas.",
+      "how": "Glucómetro con muestra capilar.",
+      "action": "Si está baja, come un carbohidrato rápido. Si está alta, revisa la dieta y reporta."
+    },
+    "sleep": {
+      "id": "sleep",
+      "name": "Sueño (últimas 24 h)",
+      "unit": "h",
+      "decimals": 1,
+      "ok": [7, 9],
+      "warn": [5.5, 10],
+      "noise": 0.2,
+      "inertia": 0.3,
+      "cadenceMs": 60000,
+      "zone": "head",
+      "hazards": ["isolation", "environment"],
+      "what": "Horas dormidas en el último ciclo.",
+      "why": "Ciclos de luz alterados, ruido y confinamiento reducen el descanso.",
+      "how": "Registro automático de la pulsera.",
+      "action": "Mantén horario fijo, baja la luz 1 hora antes y evita pantallas."
+    },
+    "mood": {
+      "id": "mood",
+      "name": "Ánimo",
+      "unit": "/10",
+      "decimals": 0,
+      "ok": [6, 10],
+      "warn": [4, 10],
+      "noise": 0.3,
+      "inertia": 0.3,
+      "cadenceMs": 60000,
+      "zone": "head",
+      "hazards": ["isolation", "distance"],
+      "what": "Autoevaluación del estado de ánimo de 1 a 10.",
+      "why": "El aislamiento y la distancia de la Tierra elevan el riesgo de estrés y ansiedad.",
+      "how": "Se registra una vez al día.",
+      "action": "Habla con tu equipo o con soporte psicológico en tierra. Programa una videollamada."
+    }
+  },
+  "crew": {
+    "comandante": {
+      "id": "comandante",
+      "name": "Cmdr. Elena Vega",
+      "role": "Comandante",
+      "accent": "#4da3ff",
+      "mission": "Coordinación general y supervisión del soporte vital.",
+      "focus": ["sleep", "mood", "bp"],
+      "baseline": {
+        "hr": 68,
+        "spo2": 98,
+        "temp": 36.7,
+        "bp": 118,
+        "glu": 92,
+        "sleep": 7.2,
+        "mood": 8
+      },
+      "bias": {},
+      "ranges": {}
+    },
+    "botanico": {
+      "id": "botanico",
+      "name": "Dr. Mateo Ríos",
+      "role": "Botánico",
+      "accent": "#4fd18b",
+      "mission": "Cultivos y ambiente cerrado del invernadero.",
+      "focus": ["sleep", "mood", "spo2"],
+      "baseline": {
+        "hr": 74,
+        "spo2": 97,
+        "temp": 36.8,
+        "bp": 122,
+        "glu": 98,
+        "sleep": 6.5,
+        "mood": 6.5
+      },
+      "bias": {
+        "sleep": -1.2,
+        "mood": -1.5,
+        "spo2": -1.2
+      },
+      "ranges": {}
+    },
+    "ingeniero": {
+      "id": "ingeniero",
+      "name": "Ing. Aiko Tanaka",
+      "role": "Ingeniera",
+      "accent": "#ff9d4d",
+      "mission": "Mantenimiento y actividad extravehicular (EVA).",
+      "focus": ["hr", "temp", "glu"],
+      "baseline": {
+        "hr": 78,
+        "spo2": 97,
+        "temp": 36.9,
+        "bp": 126,
+        "glu": 95,
+        "sleep": 6.8,
+        "mood": 7
+      },
+      "bias": {
+        "hr": 34,
+        "spo2": -3,
+        "temp": 0.9
+      },
+      "ranges": {
+        "hr": {
+          "ok": [45, 95]
+        }
+      }
+    }
+  },
+  "scenarios": {
+    "normal": {
+      "id": "normal",
+      "name": "Día normal",
+      "effects": {}
+    },
+    "eva": {
+      "id": "eva",
+      "name": "EVA exigente",
+      "effects": {
+        "hr": 35,
+        "spo2": -2,
+        "temp": 0.8,
+        "glu": -15,
+        "bp": 12
+      }
+    },
+    "solar": {
+      "id": "solar",
+      "name": "Tormenta solar",
+      "effects": {
+        "hr": 10,
+        "bp": 8,
+        "mood": -1.5,
+        "sleep": -1.2
+      }
+    },
+    "isolation": {
+      "id": "isolation",
+      "name": "Semana de aislamiento",
+      "effects": {
+        "sleep": -2.5,
+        "mood": -3,
+        "hr": 5
+      }
+    },
+    "lifesupport": {
+      "id": "lifesupport",
+      "name": "Falla de soporte vital",
+      "effects": {
+        "spo2": -6,
+        "hr": 18,
+        "mood": -1
+      }
+    }
+  }
+}
+
