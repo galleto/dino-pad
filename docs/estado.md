@@ -69,12 +69,25 @@ la fuente contra el dispositivo físico, toque con dos dedos en un celular real.
 - Sin verificar: activación por una alerta real de radiación del backend (hoy ninguna regla
   la genera; el detector busca el texto en título/mensaje).
 
-## Siguiente
-C DINO PAD EN VIVO · E a I.
+## Piezas E a I (TERMINADAS)
+
+- E `BarraMision.jsx`, `entornos.js`: UTC, MTC (Mars24, verificado MSD 44796.0 el 06/01/2000),
+  retraso con órbitas circulares (4.4 a 21 min), 5 entornos; el dossier usa el retraso.
+- F `Peligros.jsx`: rueda de 5 peligros y fuentes, dentro de Riesgos NASA.
+- G `BitacoraPage.jsx`, `registro.js`, `TrazoEcg.jsx`, `trazos.js`: registro local y gamificación.
+- H `MapaPage.jsx`: radar de Jezero (coordenadas de `dinopad/maquina.js`).
+- I `Intro.jsx`, `Presentacion.jsx`, `sonido.js`.
+
+## Pendiente / ideas
+- Probar con backend real (EN VIVO, SOS, alerta de radiación) y con el dispositivo.
+- Confirmar las 4 fuentes no leídas y las referencias de Mars24.
+- Decidir si se quita la dependencia `@fontsource/chakra-petch` (ya no se usa).
+- PROPUESTAS de contrato: espejo de interfaz y telemetría del tracker (`propuesta-espejo.md`);
+  enviar el registro del usuario al backend.
+- Notificaciones del sistema para recordatorios; entrada por cámara.
 
 ## Decisiones
 - Navegación arriba en pestañas (hermana del firmware) en lugar de barra lateral.
-- Ámbar/rojo solo semáforo: DEMO se marca con borde punteado + trama + icono.
-- Chakra Petch ya no se importa (la dependencia sigue en package.json; decidir si se quita).
-- Los rótulos pequeños en mayúsculas de Monitoreo/Laboratorio pasan a texto secundario
-  junto al título (no se eliminó ningún texto).
+- Ámbar/rojo solo semáforo y alarma (modo tormenta): DEMO se marca con borde punteado + trama.
+- Los rótulos pequeños en mayúsculas pasaron a texto secundario junto al título.
+- Pruebas: Playwright fuera del repo, en `~/.cache/dinopad-pw` (`lib.mjs` + un guion por pieza).

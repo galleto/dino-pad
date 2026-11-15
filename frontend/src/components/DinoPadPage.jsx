@@ -11,6 +11,7 @@ import { Botones, Demo, estadoInicial, manejar, P, PESTANAS, SimuladorVital } fr
 import { ALTO, ANCHO, dibujar, paginasTrack } from '../dinopad/pantalla';
 import Origen from './Origen';
 import { zonaStore } from './seleccion';
+import { presentacionStore } from './estadoMision';
 import '../styles/dinopad.css';
 
 const TECLAS = { ArrowLeft: 'negro', ArrowRight: 'blanco', Enter: 'rojo', ' ': 'rojo' };
@@ -77,7 +78,7 @@ export default function DinoPadPage() {
   const sim = useRef(null);
   const [ui, setUi] = useState(() => ({ ...estadoInicial(), pestana: ['hr', 'spo2'].includes(zonaStore.get()) ? P.VITAL : 0 }));
   const [presionado, setPresionado] = useState({ negro: false, blanco: false, rojo: false });
-  const [demoAuto, setDemoAuto] = useState(false);
+  const [demoAuto, setDemoAuto] = useState(() => presentacionStore.get() !== null);   // en modo presentación arranca solo
   const [ahora, setAhora] = useState(() => Date.now());
   const fisico = useRef({ negro: false, blanco: false, rojo: false });
   const demoAutoRef = useRef(false);

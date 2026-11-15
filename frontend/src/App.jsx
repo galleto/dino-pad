@@ -7,6 +7,9 @@ import DinoPadPage from './components/DinoPadPage';
 import Tormenta from './components/Tormenta';
 import BarraMision from './components/BarraMision';
 import BitacoraPage from './components/BitacoraPage';
+import MapaPage from './components/MapaPage';
+import Intro from './components/Intro';
+import Presentacion from './components/Presentacion';
 import { recordatorios, registroStore } from './components/registro';
 import { tormentaStore, useStore } from './components/estadoMision';
 import { ClaveOrigen } from './components/Origen';
@@ -26,6 +29,7 @@ const NAV_ITEMS = [
   ['laboratorio', '08', 'Laboratorio'],
   ['dinopad', '09', 'DINO PAD'],
   ['bitacora', '10', 'Bitácora'],
+  ['mapa', '11', 'Mapa'],
 ];
 
 const PAGE_TITLES = Object.fromEntries(NAV_ITEMS.map(([id, , label]) => [id, label]));
@@ -97,6 +101,8 @@ function App() {
 
   return (
     <div className={`app-shell scanlines${tormenta ? ' modo-tormenta' : ''}`}>
+      <Intro />
+      <Presentacion />
       <Starfield />
       <div className="reticula" aria-hidden="true" />
       <header className="masthead">
@@ -126,7 +132,7 @@ function App() {
         {cacheWarning && <div className="cache-warning" role="status">{cacheWarning}</div>}
         <main className="page-content">
           {connectionState === 'offline' && <div className="data-cached cache-banner" role="status">SIN ENLACE · Datos en caché {lastCachedAt ? `guardados ${new Date(lastCachedAt).toLocaleString('es')}` : 'sin historial local guardado'}.</div>}
-          <div className="page-enter" key={route}>{route === 'monitoreo' ? <MonitorPage /> : route === 'alertas' ? <AlertsPage /> : route === 'historial' ? <HistoryPage /> : route === 'tendencias' ? <TrendsPage /> : route === 'tripulacion' ? <CrewPage /> : route === 'riesgos' ? <RisksPage /> : route === 'emergencia' ? <EmergencyPage /> : route === 'laboratorio' ? <LabPage /> : route === 'dinopad' ? <DinoPadPage /> : route === 'bitacora' ? <BitacoraPage /> : <EmptyPage title={PAGE_TITLES[route]} description="Módulo de misión." />}</div>
+          <div className="page-enter" key={route}>{route === 'monitoreo' ? <MonitorPage /> : route === 'alertas' ? <AlertsPage /> : route === 'historial' ? <HistoryPage /> : route === 'tendencias' ? <TrendsPage /> : route === 'tripulacion' ? <CrewPage /> : route === 'riesgos' ? <RisksPage /> : route === 'emergencia' ? <EmergencyPage /> : route === 'laboratorio' ? <LabPage /> : route === 'dinopad' ? <DinoPadPage /> : route === 'bitacora' ? <BitacoraPage /> : route === 'mapa' ? <MapaPage /> : <EmptyPage title={PAGE_TITLES[route]} description="Módulo de misión." />}</div>
         </main>
         <BarraMision />
         <footer className="app-footer"><span>DINOPAD · NASA SPACE APPS 2026</span><span className="sidebar-bottom"><span className="status-dot" /> SISTEMA OPERATIVO <small>CONTROL DE MISIÓN · 2026</small></span><span>Prototipo de monitoreo · No es un dispositivo médico</span></footer>

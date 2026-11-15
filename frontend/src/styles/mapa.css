@@ -1,0 +1,36 @@
+/* mapa.css · Mapa de Jezero con radar: el radar es el protagonista */
+.mapa-pagina { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 460px); align-items: center; gap: 48px; }
+.mapa { display: block; width: 100%; max-height: calc(100vh - 190px); font-family: var(--mono); }
+.mapa-relieve { fill: none; stroke: var(--green-dim); stroke-width: .7; opacity: .32; }
+.mapa-cruz { stroke: var(--line-bright); stroke-width: .8; stroke-dasharray: 2 5; }
+.mapa-anillo { fill: none; stroke: var(--line-bright); stroke-width: 1; }
+.mapa-borde { fill: none; stroke: var(--green-dim); stroke-width: 1.5; }
+.mapa-escala { fill: var(--muted); font-size: 10px; }
+.mapa-rumbo { fill: var(--green); font-size: 13px; font-weight: 600; }
+.mapa-barrido { transform-origin: 300px 300px; animation: radar 6s linear infinite; }
+.mapa-aguja { stroke: var(--green); stroke-width: 1.4; filter: drop-shadow(0 0 4px var(--green)); }
+@keyframes radar { to { transform: rotate(360deg); } }
+.mapa-punto { cursor: pointer; outline: none; transition: transform 1s linear; }
+.mapa-marca { fill: var(--st); filter: drop-shadow(0 0 6px var(--st)); }
+.mapa-eco { fill: none; stroke: var(--st); stroke-width: 1; opacity: .6; animation: eco 2.4s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes eco { from { transform: scale(.4); opacity: .9; } to { transform: scale(1.5); opacity: 0; } }
+.mapa-base { fill: #080d0a; stroke: var(--st); stroke-width: 2; filter: drop-shadow(0 0 6px var(--st)); }
+.mapa-mira { fill: none; stroke: var(--text); stroke-width: 1.4; }
+.mapa-nombre { fill: var(--text); font-size: 12px; font-weight: 600; paint-order: stroke; stroke: #080d0a; stroke-width: 3px; }
+.mapa-punto:focus-visible .mapa-nombre { fill: var(--green); text-decoration: underline; }
+.mapa-punto:focus-visible { outline: none; }
+.mapa-lado { display: grid; gap: 14px; }
+.mapa-aviso { line-height: 1.6; }
+.mapa-nota { color: var(--muted); font-size: var(--t-sm); line-height: 1.55; }
+.mapa-nota a { color: var(--green); }
+.mapa-lista { display: grid; margin: 0; padding: 0; border-top: 1px solid var(--line-bright); list-style: none; }
+.mapa-lista li { border-bottom: 1px solid var(--line); border-left: 2px solid var(--st); }
+.mapa-lista button { display: grid; width: 100%; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 11px 8px 11px 12px; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
+.mapa-lista button:hover { background: var(--green-tint); }
+.mapa-lista li.is-activo button { background: linear-gradient(90deg, #a4ff7014, transparent 80%); }
+.mapa-l-nombre strong { display: block; font-size: var(--t-lg); font-weight: 600; }
+.mapa-l-nombre small, .mapa-l-coord { color: var(--muted); font-size: var(--t-xs); }
+.mapa-l-dist { color: var(--muted); text-align: right; white-space: nowrap; }
+.mapa-l-dist b { color: var(--green); font-size: var(--t-2xl); font-weight: 500; text-shadow: var(--glow-soft); }
+.mapa-l-estado { color: var(--st); font-size: var(--t-xs); text-align: right; }
+@media (max-width: 1000px) { .mapa-pagina { grid-template-columns: minmax(0, 1fr); gap: 20px; } .mapa { max-height: none; } }

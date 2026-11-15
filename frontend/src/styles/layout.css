@@ -179,3 +179,37 @@
   .bm-acciones { margin-left: 0; }
 }
 @media (max-width: 720px) { .barra-mision { padding-inline: 12px; } .bm-dato { margin-right: 12px; padding-right: 12px; } .bm-senal { display: none; } }
+
+/* ---------- Intro (Intro.jsx) ---------- */
+.intro { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; background: #050806; cursor: pointer; transition: opacity .45s ease; }
+.intro.is-saliendo { opacity: 0; pointer-events: none; }
+.intro::before { position: absolute; inset: 0; background: repeating-linear-gradient(to bottom, transparent 0 3px, #a4ff7008 3px 4px), radial-gradient(ellipse at center, #a4ff7012, transparent 60%); content: ""; }
+.intro-caja { position: relative; display: grid; justify-items: start; gap: 10px; width: min(680px, calc(100% - 40px)); }
+.intro-marca { display: grid; width: 64px; height: 64px; place-items: center; border: 2px solid var(--green); color: var(--green); font-size: 38px; font-weight: 700; text-shadow: var(--glow); box-shadow: 0 0 40px #a4ff7040, inset 0 0 24px #a4ff7030; animation: intro-enciende .5s steps(4) both; }
+.intro h1 { overflow: hidden; color: var(--green); font-size: clamp(48px, 9vw, 104px); font-weight: 700; line-height: 1; letter-spacing: .06em; white-space: nowrap; text-shadow: 0 0 30px #a4ff7066; animation: intro-escribe .9s steps(8) .35s both; }
+.intro-lema { color: var(--text); font-size: clamp(15px, 2vw, 21px); animation: intro-aparece .5s ease 1.3s both; }
+.intro-lineas { display: grid; gap: 4px; margin: 14px 0 0; padding: 0; color: var(--muted); font-size: var(--t-md); list-style: none; }
+.intro-lineas li { animation: intro-aparece .35s ease both; }
+.intro-lineas li::before { color: var(--green-dim); content: "> "; }
+.intro-lineas li:nth-child(1) { animation-delay: 1.9s; }
+.intro-lineas li:nth-child(2) { animation-delay: 2.5s; }
+.intro-lineas li:nth-child(3) { animation-delay: 3.1s; }
+.intro-barra { width: 100%; height: 3px; margin-top: 16px; background: var(--line); }
+.intro-barra i { display: block; height: 100%; background: var(--green); box-shadow: 0 0 12px var(--green); transform-origin: left; animation: intro-carga 4.6s linear both; }
+.intro-omitir { justify-self: end; padding: 6px 14px; border: 1px solid var(--line-bright); background: none; color: var(--muted); font-size: var(--t-sm); cursor: pointer; }
+.intro-omitir:hover { border-color: var(--green-dim); color: var(--green); }
+@keyframes intro-enciende { from { opacity: 0; } }
+@keyframes intro-escribe { from { width: 0; } to { width: 100%; } }
+@keyframes intro-aparece { from { opacity: 0; transform: translateX(-8px); } }
+@keyframes intro-carga { from { transform: scaleX(0); } }
+
+/* ---------- Modo presentación (Presentacion.jsx) ---------- */
+.presentacion { position: fixed; z-index: 60; left: 50%; bottom: 62px; display: flex; width: min(980px, calc(100% - 32px)); align-items: center; gap: 16px; padding: 12px 16px 14px; border: 1px solid var(--green); background: #080d0af5; box-shadow: 0 18px 60px #000d, 0 0 30px #a4ff7022; transform: translateX(-50%); }
+.pres-cuenta { color: var(--green); font-size: var(--t-xl); font-weight: 600; text-shadow: var(--glow-soft); }
+.presentacion p { flex: 1; font-size: var(--t-lg); line-height: 1.4; }
+.pres-botones { display: flex; }
+.pres-botones button { margin-left: -1px; padding: 6px 11px; border: 1px solid var(--line-bright); background: none; color: var(--muted); font-size: var(--t-sm); cursor: pointer; }
+.pres-botones button:hover { color: var(--green); }
+.pres-progreso { position: absolute; inset: auto 0 0; height: 3px; background: var(--green); transform-origin: left; animation: intro-carga linear both; }
+@media (max-width: 720px) { .presentacion { bottom: 64px; flex-wrap: wrap; gap: 8px; } .presentacion p { flex-basis: 100%; order: 3; font-size: var(--t-md); } }
+@media (prefers-reduced-motion: reduce) { .pres-progreso { display: none; } }

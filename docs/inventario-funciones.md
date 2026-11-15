@@ -194,6 +194,23 @@ No se quitan; el rediseño los hace visibles.
 | [x] | Vínculo DINO PAD ↔ figura humana | C: Playwright |
 | [ ] | Insignia "EN VIVO desde el DINO PAD" con lecturas reales | pendiente (sin backend con `live`) |
 
+### Piezas D a I
+
+| | Elemento | Verificado en |
+|---|---|---|
+| [x] | Modo tormenta solar (Laboratorio o alerta de radiación): cuenta regresiva, 5 pasos, pase de lista | D: Playwright |
+| [x] | Barra de misión: UTC, hora de Marte (MTC), retraso de señal, entorno, sonido, modo presentación | E: Playwright |
+| [x] | Rueda de los 5 peligros y "Fuentes y ciencia" (8 enlaces) en Riesgos NASA; el contenido anterior de la página sigue debajo | F: Playwright |
+| [x] | Página 10 Bitácora: registro manual, anillo, racha, insignias, recordatorios; trazo tipo ECG en Monitoreo | G: Playwright |
+| [x] | Página 11 Mapa: radar de Jezero con base y tripulantes DEMO | H: Playwright |
+| [x] | Intro (una vez por sesión, omitible, no con movimiento reducido) y modo presentación (12 pasos) | I: Playwright |
+| [x] | PWA sin conexión con todas las vistas nuevas | I: Playwright con la red cortada |
+
+Claves nuevas de `localStorage` (solo presentación): `dinopad-entorno`, `dinopad-sonido`,
+`dinopad-registro-v1`. `sessionStorage`: `dinopad-intro-vista`.
+
+Páginas: eran 8 y ahora son 11 (se agregaron 09 DINO PAD, 10 Bitácora, 11 Mapa). No se quitó ninguna.
+
 ## 14. Estado de partida del build
 
 - `npm run build`: compila, con **1 advertencia**: el chunk de `BodyViewer3D`

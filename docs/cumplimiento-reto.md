@@ -17,7 +17,53 @@ semáforo, pero falta el dossier con la función de cada zona (pieza B).
 el protocolo de refugio paso a paso; es un ejemplo del proyecto, rotulado "referencia a
 confirmar".
 
-## Matriz
+## MATRIZ FINAL (tras las piezas A a I, 15/11/2026)
+
+"Cumple" = existe y se comprobó con Playwright (clics, teclado, consola sin errores) sobre la
+build de producción con el simulador local. Lo que no se pudo comprobar se dice.
+
+| # | Requisito | Estado | Dónde | Comprobado |
+|---|---|---|---|---|
+| 1 | Reúne los 7 indicadores | **cumple** | Monitoreo (canales), Historial, Tendencias | sí |
+| 1b | El astronauta puede evaluarlos | **cumple** | Semáforo con glifo en cada canal y zona; dossier "Cuándo avisar"; Bitácora evalúa lo que anota contra el rango | sí |
+| 2 | Guía de tratamiento y prevención | **cumple** | Dossier "Qué hacer si sale mal"; consejo en Bitácora; protocolo de refugio (ejemplo del proyecto) | sí |
+| 3a | Qué se puede medir en el espacio | **cumple** | Dossier "Qué se mide y cómo"; DINO PAD dice qué mide de verdad el hardware | sí |
+| 3b | Por qué se necesita cada examen | **cumple** | Dossier y pie de la figura | sí |
+| 3c | Cómo afectan los peligros a cada indicador | **cumple** | Dossier "¿Por qué importa?"; rueda de peligros | sí |
+| 3d | Cuándo avisar a tripulación o a tierra | **cumple** | Dossier "Cuándo avisar" + retraso de la señal según el entorno (regla del proyecto) | sí |
+| 4 | Instrucciones simples | **cumple** | Un toque en la zona o en "¿Por qué importa?" | sí |
+| 5a | Entrada de datos del usuario | **cumple** (teclado y clics) | Bitácora: ánimo, sueño, glucosa. Sin cámara | sí |
+| 5b | Recordatorios periódicos | **cumple** | Bitácora (lista) y aviso con número en la pestaña. Sin notificaciones del sistema | sí |
+| 6 | Semáforo de colores | **cumple** | Toda la interfaz, siempre con glifo además del color | sí |
+| 7 | Gráficas dinámicas | **cumple** | Minigráficas suaves, dossier, Historial, Bitácora, trazo tipo ECG (DEMO), pantalla VITAL | sí |
+| 8 | Gamificación | **cumple** | Anillo de preparación, racha, semana, 5 insignias | sí |
+| 9 | Figura humana con zonas clicables | **cumple** | 11 zonas con función y estado | sí |
+| 10 | Distintos entornos | **cumple** | Selector (nave, estación, rover, base lunar, base marciana): cambia retraso, gravedad, peligros destacados y mensajes | sí |
+| 11 | Los 5 peligros del HRP | **cumple** | Rueda en Riesgos NASA, ligada a indicadores | sí |
+| 12 | Recursos NASA/CSA visibles | **parcial** | "Fuentes y ciencia": los 8 enlaces; 4 leídos y citados, 4 marcados "referencia a confirmar" sin citar contenido | sí |
+
+Ningún requisito queda en "falta". El 12 queda parcial a propósito: no se cita lo que no se leyó.
+
+### Requisitos propios
+
+| Requisito | Estado final |
+|---|---|
+| 4 orígenes visibles (REAL / DEMO / REFERENCIA NASA / REGISTRO DEL USUARIO) | **cumple**: los cuatro tienen datos que los usan |
+| DINO PAD EN VIVO | **cumple como gemelo simulado**; espejo exacto = PROPUESTA |
+| Batería, temperatura ambiente y luz del T1000-E | **parcial**: en el gemelo, como DEMO; reales con la PROPUESTA 2 |
+| Mapa de Jezero | **cumple** (DEMO) |
+| Reloj de misión y retraso | **cumple** (cálculo estimado, referencias a confirmar) |
+| Modo tormenta, intro, modo presentación, sonido opcional | **cumple** |
+| Funciona sin internet | **cumple**: probado con el service worker y la red cortada |
+
+### Sin comprobar (decirlo en la demo si preguntan)
+- Backend real: `source: "live"`, insignia "EN VIVO", historial remoto, SOS real y alerta real de radiación.
+- Vista 3D con WebGL (la prueba no tiene WebGL), lectura en voz alta y sonidos (sin audio).
+- Fidelidad de la fuente del gemelo contra el dispositivo; toque con dos dedos en celular real.
+- 60 fps: no se midió; las animaciones son CSS/SVG/canvas ligeros y se pausan con movimiento reducido.
+- Contraste AA: revisado por diseño (texto #d8e6d9 y #84958a sobre #080d0a), sin auditoría automática.
+
+## Matriz de partida y avance por pieza
 
 | # | Requisito del reto | Dónde se cumple hoy | Estado | Qué falta | Después |
 |---|---|---|---|---|---|
