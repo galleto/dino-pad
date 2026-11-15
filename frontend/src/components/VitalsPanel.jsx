@@ -1,16 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
-import OrganViewer3D from './OrganViewer3D';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { getGlossaryEntry } from '../data/glossary';
 import {
   getVitalAssessment,
   SIMULATOR_LIMITS,
   SIMULATOR_NOISE,
   SIMULATOR_SCENARIOS,
-  STATUS_COLORS,
   VITALS_CONFIG,
   obtenerSignosVitales,
 } from './vitalsConfig';
 import './VitalsPanel.css';
+
+const BodyViewer3D = lazy(() => import('./BodyViewer3D'));
 
 function createInitialSimulation() {
   const values = obtenerSignosVitales();
@@ -108,7 +108,15 @@ function SimulatorSlider({ slider, unit, value, onChange }) {
   );
 }
 
-export default function VitalsPanel({ selected, indicatorData, history }) {
+export default function VitalsPanel({
+  selected,
+  indicatorData,
+  crew,
+  indicators,
+  latest,
+  history,
+  onSelect,
+}) {
   const [simulation, setSimulation] = useState(createInitialSimulation);
   const [scenario, setScenario] = useState('reposo');
   const indicatorId = VITALS_CONFIG[selected] ? selected : 'hr';
@@ -161,7 +169,6 @@ export default function VitalsPanel({ selected, indicatorData, history }) {
       ? `${formatValue(values.resp)} resp/min`
       : '';
   const rangeValue = indicatorId === 'bp' ? values.bp : values[config.mainKey];
-  const statusColor = STATUS_COLORS[assessment.status] || STATUS_COLORS.ok;
   const selectedScenario = SIMULATOR_SCENARIOS[scenario];
   const glossary = getGlossaryEntry(indicatorId);
 
@@ -179,14 +186,17 @@ export default function VitalsPanel({ selected, indicatorData, history }) {
         <div className="vitals-organ-column">
           <div className="vitals-organ-heading">
             <span className="eyebrow">MODELO ANATÓMICO</span>
-            <strong>{config.organLabel}</strong>
+            <strong>Cuerpo completo · {config.organLabel}</strong>
           </div>
-          <OrganViewer3D
-            structures={config.organ}
-            statusColor={statusColor}
-            heartRate={values.hr}
-            respirationRate={values.resp}
-          />
+          <Suspense fallback={<div className="viewer-fallback">Cargando cuerpo 3D…</div>}>
+            <BodyViewer3D
+              crew={crew}
+              indicators={indicators}
+              latest={latest}
+              selected={selected}
+              onSelect={onSelect}
+            />
+          </Suspense>
         </div>
 
         <div className="vitals-readout">

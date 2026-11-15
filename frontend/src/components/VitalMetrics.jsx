@@ -12,12 +12,17 @@ export default function VitalMetrics({ data, onSelectIndicator }) {
   const { crew, indicators, activeCrewId, setActiveCrewId, latest, history, alerts } = data;
   const astronaut = crew[activeCrewId];
   const current = latest[activeCrewId] || {};
-  const [selected, setSelected] = useState('');
+  const [selected, setSelected] = useState('hr');
   const showFullBodyViewer = false;
   const hasReading = Object.values(current).some((reading) => reading?.quality !== 'no_signal' && reading?.value != null);
   const status = hasReading ? getOverallStatus(astronaut, current) : 'warn';
   const localAlerts = alerts.filter((alert) => alert.crewId === activeCrewId);
   const orderedIndicators = Object.values(indicators);
+  const handleSelectIndicator = (indicatorId) => {
+    const nextSelected = selected === indicatorId ? '' : indicatorId;
+    setSelected(nextSelected);
+    onSelectIndicator?.(nextSelected);
+  };
   return (
     <div className="page-grid">
       <div className="monitor-toolbar">
@@ -34,11 +39,7 @@ export default function VitalMetrics({ data, onSelectIndicator }) {
                 crew={astronaut}
                 reading={current[indicator.id]}
                 selected={selected === indicator.id}
-                onSelect={() => {
-                  const nextSelected = selected === indicator.id ? '' : indicator.id;
-                  setSelected(nextSelected);
-                  onSelectIndicator?.(nextSelected);
-                }}
+                onSelect={() => handleSelectIndicator(indicator.id)}
               />
             ))}
           </div>
@@ -48,7 +49,11 @@ export default function VitalMetrics({ data, onSelectIndicator }) {
             <VitalsPanel
               selected={selected}
               indicatorData={indicators[selected]}
+              crew={astronaut}
+              indicators={indicators}
+              latest={current}
               history={history[activeCrewId] || {}}
+              onSelect={handleSelectIndicator}
             />
           </section>
         </div>

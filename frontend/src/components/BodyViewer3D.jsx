@@ -258,7 +258,7 @@ function AnatomyModel({
   }, [model, selectedKeys, selectedColor]);
 
   // ==========================================================
-  // ACERCAMIENTO A LA ESTRUCTURA SELECCIONADA
+  // ENCUADRE DEL CUERPO COMPLETO
   // ==========================================================
 
   useEffect(() => {
@@ -268,24 +268,7 @@ function AnatomyModel({
 
     root.updateWorldMatrix(true, true);
 
-    const box = new THREE.Box3();
-    const selectedSet = new Set(selectedKeys);
-
-    let foundStructure = false;
-
-    if (selectedSet.size > 0) {
-      model.traverse((object) => {
-        if (!selectedSet.has(object.name)) return;
-
-        box.expandByObject(object);
-        foundStructure = true;
-      });
-    }
-
-    // Si no encontramos una estructura, mostramos el cuerpo.
-    if (!foundStructure || box.isEmpty()) {
-      box.setFromObject(root);
-    }
+    const box = new THREE.Box3().setFromObject(root);
 
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
@@ -297,9 +280,7 @@ function AnatomyModel({
       0.25,
     );
 
-    const distance = maxDimension * (
-      foundStructure ? 3.2 : 1.8
-    );
+    const distance = maxDimension * 1.8;
 
     const target = center;
 
@@ -316,8 +297,6 @@ function AnatomyModel({
       controlsRef.current.update();
     }
   }, [
-    selected,
-    selectedKeys,
     model,
     geometry,
     camera,
