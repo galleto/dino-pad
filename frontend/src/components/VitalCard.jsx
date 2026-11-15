@@ -32,19 +32,21 @@ function Escala({ ranges, value }) {
   );
 }
 
-export default function VitalCard({ indicator, crew, reading, history = [], onSelect, selected = false }) {
+export default function VitalCard({ indicator, crew, reading, history = [], onSelect, onWhy, selected = false }) {
   const status = getStatus(indicator, crew, reading);
   const ranges = getRanges(indicator, crew);
   const value = reading?.quality === 'no_signal' ? '—' : reading?.value ?? '—';
   return (
     <article className={`canal st-${status}${selected ? ' is-selected' : ''}`}>
-      <button className="canal-btn" type="button" onClick={onSelect} aria-pressed={selected} aria-label={`${indicator.name}: ${value} ${indicator.unit}; ${STATUS_LABEL[status]}`}>
-        <span className="canal-id"><span className="canal-nombre">{indicator.name}</span><span className="canal-estado st-glyph">{STATUS_LABEL[status]}</span></span>
-        <span className="canal-valor"><strong>{value}</strong><span>{indicator.unit}</span></span>
-        <span className="canal-escala"><Escala ranges={ranges} value={reading?.quality === 'no_signal' ? null : reading?.value} /><span className="vital-range">normal {ranges.ok[0]}–{ranges.ok[1]} {indicator.unit}</span></span>
-        <MiniChart readings={history} />
-        <span className="canal-origen">{reading ? <Origen source={reading.source} compact /> : <span className="tag">SIN DATOS</span>}{reading?.quality === 'no_signal' && <span className="canal-sin-senal">SIN SEÑAL</span>}</span>
-      </button>
+      <span className="canal-id">
+        {/* El botón del nombre cubre toda la fila (::after); "¿Por qué importa?" queda encima */}
+        <button className="canal-btn" type="button" onClick={onSelect} aria-pressed={selected} aria-label={`${indicator.name}: ${value} ${indicator.unit}; ${STATUS_LABEL[status]}`}>{indicator.name}</button>
+        <span className="canal-linea"><span className="canal-estado st-glyph">{STATUS_LABEL[status]}</span>{onWhy && <button type="button" className="canal-porque" onClick={onWhy} aria-label={`¿Por qué importa ${indicator.name}?`}>¿Por qué importa?</button>}</span>
+      </span>
+      <span className="canal-valor"><strong>{value}</strong><span>{indicator.unit}</span></span>
+      <span className="canal-escala"><Escala ranges={ranges} value={reading?.quality === 'no_signal' ? null : reading?.value} /><span className="vital-range">normal {ranges.ok[0]}–{ranges.ok[1]} {indicator.unit}</span></span>
+      <MiniChart readings={history} />
+      <span className="canal-origen">{reading ? <Origen source={reading.source} compact /> : <span className="tag">SIN DATOS</span>}{reading?.quality === 'no_signal' && <span className="canal-sin-senal">SIN SEÑAL</span>}</span>
     </article>
   );
 }

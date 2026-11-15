@@ -1,10 +1,12 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useCallback, useState } from 'react';
 import { getOverallStatus, STATUS_LABEL } from '../services/health';
 import Origen from './Origen';
 import VitalCard from './VitalCard';
 import HealthAlerts from './HealthAlerts';
 import CrewSelector from './CrewSelector';
 import FiguraHumana from './FiguraHumana';
+import Dossier from './Dossier';
+import { ZONA_INFO } from './zonasCuerpo';
 
 // El visor 3D (three.js) es opcional y solo se descarga al pedir "Vista 3D".
 const BodyViewer3D = lazy(() => import('./BodyViewer3D'));
@@ -19,8 +21,11 @@ export default function VitalMetrics({ data, onSelectIndicator }) {
   const status = hasReading ? getOverallStatus(astronaut, current) : 'warn';
   const localAlerts = alerts.filter((alert) => alert.crewId === activeCrewId);
   const orderedIndicators = Object.values(indicators);
+  const [foco, setFoco] = useState('');
   const seleccionado = indicators[selected];
-  const elegir = (id) => { setSelected(id); onSelectIndicator?.(id); };
+  const elegir = (id, nuevoFoco = '') => { setSelected(id); setFoco(nuevoFoco); if (indicators[id]) onSelectIndicator?.(id); };
+  const cerrar = useCallback(() => { setSelected(''); setFoco(''); }, []);
+  const fc = current.hr;
   return (
     <div className="monitor">
       <div className="monitor-toolbar">
@@ -31,7 +36,7 @@ export default function VitalMetrics({ data, onSelectIndicator }) {
         <div className="monitor-canales">
           <header className="col-head"><h2>Indicadores</h2><span>{orderedIndicators.length} canales · rangos del proyecto, no de la NASA</span></header>
           {orderedIndicators.map((indicator) => (
-            <VitalCard key={indicator.id} indicator={indicator} crew={astronaut} reading={current[indicator.id]} history={history[activeCrewId]?.[indicator.id] || []} selected={selected === indicator.id} onSelect={() => elegir(indicator.id)} />
+            <VitalCard key={indicator.id} indicator={indicator} crew={astronaut} reading={current[indicator.id]} history={history[activeCrewId]?.[indicator.id] || []} selected={selected === indicator.id} onSelect={() => elegir(indicator.id)} onWhy={() => elegir(indicator.id, 'porque')} />
           ))}
         </div>
         <section className="monitor-figura body-panel">
@@ -45,9 +50,11 @@ export default function VitalMetrics({ data, onSelectIndicator }) {
           {vista === 'figura'
             ? <FiguraHumana crew={astronaut} indicators={indicators} latest={current} selected={selected} onSelect={elegir} />
             : <Suspense fallback={<div className="viewer-fallback">Preparando visor holográfico…</div>}><BodyViewer3D crew={astronaut} indicators={indicators} latest={current} selected={selected} onSelect={elegir} /></Suspense>}
-          <p className="figura-pie" role="status">{seleccionado ? <><strong>{seleccionado.name}.</strong> {seleccionado.what}</> : 'Selecciona un punto: toca una zona del cuerpo o un indicador.'}</p>
+          <p className="figura-pie" role="status">{seleccionado ? <><strong>{seleccionado.name}.</strong> {seleccionado.what}</> : ZONA_INFO[selected] ? <><strong>{ZONA_INFO[selected].titulo}.</strong> {ZONA_INFO[selected].funcion}</> : 'Selecciona un punto: toca una zona del cuerpo o un indicador.'}</p>
+          <p className="figura-leyenda"><span>● normal</span><span>▲ atención</span><span>■ crítico</span><span>○ sin señal</span><span>◇ sin sensor</span>{fc?.value != null && fc.quality !== 'no_signal' && <span className="figura-latido">El corazón late a {fc.value} lpm <Origen source={fc.source} compact /></span>}</p>
         </section>
         <aside className="monitor-aside">
+          {ZONA_INFO[selected] && <Dossier key={selected} zonaId={selected} crew={astronaut} indicators={indicators} latest={current} history={history[activeCrewId]?.[selected]} foco={foco} onClose={cerrar} />}
           <section className="side-panel">
             <header className="col-head"><h2>Alertas activas <small>prioridad</small></h2><span className="count-badge">{localAlerts.length}</span></header>
             <HealthAlerts alerts={localAlerts.slice(0, 4)} crewById={crew} latest={latest} compact />

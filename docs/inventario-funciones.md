@@ -172,6 +172,16 @@ No se quitan; el rediseño los hace visibles.
 | [x] | Leyenda de orígenes: clave compacta en la barra de título (popover) y lista en Laboratorio | A: visible; popover sin probar |
 | [x] | `what` del indicador seleccionado bajo la figura | A: código; sin probar el clic |
 
+### Pieza B (figura y dossier)
+
+| | Elemento | Verificado en |
+|---|---|---|
+| [x] | Figura con 11 zonas clicables y con teclado; selección figura ↔ canal | B: Playwright |
+| [x] | Dossier por zona: `what`, `why`, `how`, `action`, `hazards` de crewData.js ya visibles (sección 12) | B: Playwright |
+| [x] | Botón "¿Por qué importa?" en cada indicador | B: Playwright |
+| [x] | Latido del corazón al ritmo de la FC, con el origen de la lectura | B: Playwright (`--latido`) |
+| [ ] | Vista 3D con WebGL real | pendiente (sin WebGL en la prueba; se ve el respaldo) |
+
 ## 14. Estado de partida del build
 
 - `npm run build`: compila, con **1 advertencia**: el chunk de `BodyViewer3D`

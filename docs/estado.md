@@ -2,7 +2,7 @@
 
 Actualizado: 15/11/2026. Node: `~/.nvm/versions/node/v26.13.1/bin` (no está en el PATH).
 
-## Pieza A · Base visual (TERMINADA, commit hecho; esperando el OK del usuario)
+## Pieza A · Base visual (TERMINADA, commit 280d0ed; OK del usuario recibido)
 
 - `docs/paleta-original.md`: valores exactos de origin/main.
 - `tokens.css`, `layout.css`, `components.css`, `pages.css` reescritos: paleta original,
@@ -23,8 +23,23 @@ Cómo capturar: `npx vite preview --port 4317` y
 Sin verificar en A: interacción (clic en zonas/canales, popover, Vista 3D con WebGL), SOS y
 backend real. Firefox sin interfaz solo captura al cargar.
 
+## Pieza B · Figura humana y dossier (TERMINADA)
+
+- `zonasCuerpo.js`: textos del equipo (función, cuándo avisar) y riesgo HRP leído por zona.
+- `FiguraHumana.jsx`: 11 zonas (7 con indicador y semáforo; ojos, huesos, músculo e inmune
+  como referencia "sin sensor" en azul punteado); corazón late al ritmo de la FC (`--latido`).
+- `Dossier.jsx`: función, valor + gráfica con banda, rango, qué/cómo se mide, por qué importa
+  (peligros HRP + riesgo HRP con rótulo REFERENCIA NASA), qué hacer, cuándo avisar. En pantallas
+  de 1560 px o menos entra como cajón fijo. Escape lo cierra.
+- `VitalCard.jsx`: botón "¿Por qué importa?" por canal (abre el dossier en esa sección).
+- Probado con Playwright (clic, teclado, Escape, cambio de tripulante, 1920/1366/390; sin
+  errores de consola). Vista 3D: en Firefox sin interfaz no hay WebGL, se ve el respaldo.
+
+Pruebas: Playwright vive FUERA del repo en `~/.cache/dinopad-pw` (`node b.mjs <dir-salida>`,
+con `npx vite preview --port 4317` corriendo en frontend/).
+
 ## Siguiente
-B figura (dossier, latido, más zonas) · C DINO PAD EN VIVO · D tormenta solar · E a I.
+C DINO PAD EN VIVO · D tormenta solar · E a I.
 
 ## Decisiones
 - Navegación arriba en pestañas (hermana del firmware) en lugar de barra lateral.
