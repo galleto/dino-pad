@@ -2,7 +2,7 @@
 // Se activa con DEMO_AUTOMATICO = true en dinopad_pipboy.ino. Cada paso es el mismo
 // evento que generaria un boton, asi que la pantalla se comporta igual que a mano.
 // Al terminar la lista vuelve a empezar. Los botones reales siguen funcionando.
-// En MENS envia "Estoy bien" de verdad, pero solo una vez por firmware subido.
+// En MENS el envio es SIMULADO (pantalla con rotulo DEMO): nunca sale por radio.
 #pragma once
 #include "botones.h"
 
@@ -21,10 +21,9 @@ static const PasoDemo GUION_DEMO[] = {
     {Evento::VOLVER, 1500}, {Evento::SIGUIENTE, 1500},
     // VITAL
     {Evento::SELECCIONAR, 10000}, {Evento::VOLVER, 1500}, {Evento::SIGUIENTE, 1500},
-    // MENS: mover el cursor, volver a "Estoy bien" y enviarlo. El envio real ocurre
-    // UNA vez por firmware subido (NVS); en las siguientes vueltas solo lo avisa.
+    // MENS: mover el cursor, volver a "Estoy bien" y "enviarlo" (simulado, rotulo DEMO)
     {Evento::SELECCIONAR, 2000}, {Evento::SIGUIENTE, 1500}, {Evento::ANTERIOR, 1500},
-    {Evento::SELECCIONAR, 15000}, {Evento::VOLVER, 1500}, {Evento::SIGUIENTE, 1500},
+    {Evento::SELECCIONAR, 4000}, {Evento::VOLVER, 1500}, {Evento::SIGUIENTE, 1500},
     // SOS (solo pantalla, no envia nada) y cerrarlo; de vuelta en ESTADO
     {Evento::SOS, 4000}, {Evento::SELECCIONAR, 3000},
 };

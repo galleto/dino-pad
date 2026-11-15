@@ -1,6 +1,7 @@
 // Prueba en la PC de vitales.h, simulador_vital.h y mensajes.h. Uso: test/verificar_vitales.sh
 #include <cstdio>
 #include <cstring>
+#include <initializer_list>
 
 #include "../mensajes.h"
 #include "../simulador_vital.h"
@@ -56,6 +57,18 @@ int main() {
   revisar("mensajes: 1 a 24 caracteres (caben en una fila)", cortos);
   revisar("mensajes: solo ASCII (la fuente no tiene acentos)", ascii);
   revisar("mensajes: 8 caben en la pestana", N_MENSAJES <= 8);
+
+  // El guion de demo nunca envia por radio, en ningun caso
+  bool demoNuncaReal = true;
+  for (int enviar = 0; enviar < 2; enviar++)
+    for (int hubo = 0; hubo < 2; hubo++)
+      for (uint32_t ms : {0u, 29999u, 30000u, 1000000u})
+        if (decidirEnvio(true, enviar, hubo, ms, 30000) != DecisionEnvio::SIMULADO_DEMO) demoNuncaReal = false;
+  revisar("envio: el guion de demo siempre es SIMULADO (aunque ENVIAR_MENSAJE = true)", demoNuncaReal);
+  revisar("envio: boton con ENVIAR_MENSAJE = false no sale", decidirEnvio(false, false, false, 0, 30000) == DecisionEnvio::DESACTIVADO);
+  revisar("envio: boton con ENVIAR_MENSAJE = true sale", decidirEnvio(false, true, false, 0, 30000) == DecisionEnvio::REAL);
+  revisar("envio: pausa de 30 s entre envios con boton", decidirEnvio(false, true, true, 29999, 30000) == DecisionEnvio::ESPERA &&
+                                                            decidirEnvio(false, true, true, 30000, 30000) == DecisionEnvio::REAL);
 
   printf("\n%s\n", fallos ? "HAY FALLOS" : "TODO OK");
   return fallos ? 1 : 0;

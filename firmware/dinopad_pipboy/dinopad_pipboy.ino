@@ -20,24 +20,22 @@
 // Compilar con: --libraries firmware/libraries   (pines.h)
 // Antes, una vez: firmware/ble_send/tools/generar_nanopb.sh  (genera src/mtpb)
 
-#include <Preferences.h>
 #include <pines.h>
 
 #include "botones.h"
 #include "compartido.h"
 #include "conexion_ble.h"
 #include "demo.h"
+#include "mensajes.h"
 #include "simulador_vital.h"
 #include "vitales.h"
 #include "ui.h"
 
-// true: MENS envia de verdad por el T1000-E (broadcast en el canal primario, PUBLICO).
-// Limites para no llenar la red: el script de demo manda UN mensaje por firmware
-// subido (se recuerda en NVS, sobrevive reinicios), y con botones hay que esperar
-// ENVIO_PAUSA_MS entre envios.
+// true: MENS envia de verdad por el T1000-E (broadcast en el canal primario, PUBLICO),
+// solo al presionar ROJO, con ENVIO_PAUSA_MS entre envios. El guion de DEMO_AUTOMATICO
+// nunca envia por radio: simula el envio en pantalla con rotulo DEMO (decidirEnvio()).
 static const bool ENVIAR_MENSAJE = false;
 static const uint32_t ENVIO_PAUSA_MS = 30000;
-static const char* const ID_FIRMWARE = __DATE__ " " __TIME__;   // cambia con cada compilacion
 
 // true: recorre el menu solo (demo.h), para placas sin botones.
 static const bool DEMO_AUTOMATICO = true;
@@ -64,34 +62,22 @@ static const char* nombreModo(Modo m) {
   return m == Modo::MENU ? "MENU" : m == Modo::DENTRO ? "DENTRO" : "SOS";
 }
 
-// true si el script de demo ya mando su mensaje con este firmware (NVS)
-static bool demoYaEnvio() {
-  Preferences p;
-  p.begin("dinopad", true);
-  String hecho = p.getString("demoEnvio", "");
-  p.end();
-  return hecho == ID_FIRMWARE;
-}
-
-static void marcarDemoEnvio() {
-  Preferences p;
-  p.begin("dinopad", false);
-  p.putString("demoEnvio", ID_FIRMWARE);
-  p.end();
-}
-
 // Pide a la tarea BLE que envie el mensaje seleccionado. Devuelve el texto del pie.
 static const char* pedirEnvio(bool desdeDemo, char* t, size_t n) {
   const char* msg = ui::mensajeSeleccionado();
-  if (!ENVIAR_MENSAJE) { snprintf(t, n, "NO ENVIADO (ENVIAR=false): %s", msg); return t; }
-  if (desdeDemo && demoYaEnvio()) {
-    snprintf(t, n, "DEMO: ya se envio uno con este firmware");
-    return t;
-  }
-  if (huboEnvio && millis() - ultimoEnvioMs < ENVIO_PAUSA_MS) {
-    snprintf(t, n, "Espera %lus para otro envio",
-             (unsigned long)((ENVIO_PAUSA_MS - (millis() - ultimoEnvioMs)) / 1000 + 1));
-    return t;
+  switch (decidirEnvio(desdeDemo, ENVIAR_MENSAJE, huboEnvio, millis() - ultimoEnvioMs, ENVIO_PAUSA_MS)) {
+    case DecisionEnvio::SIMULADO_DEMO:   // el pie ya dice "Ultimo DEMO:"
+      snprintf(t, n, "ENVIO SIMULADO: %s", msg);
+      return t;
+    case DecisionEnvio::DESACTIVADO:
+      snprintf(t, n, "NO ENVIADO (ENVIAR=false): %s", msg);
+      return t;
+    case DecisionEnvio::ESPERA:
+      snprintf(t, n, "Espera %lus para otro envio",
+               (unsigned long)((ENVIO_PAUSA_MS - (millis() - ultimoEnvioMs)) / 1000 + 1));
+      return t;
+    case DecisionEnvio::REAL:
+      break;
   }
   compartidoBloquear();
   Compartido& c = compartidoRef();
@@ -109,9 +95,7 @@ static const char* pedirEnvio(bool desdeDemo, char* t, size_t n) {
   if (ocupado) { snprintf(t, n, "NO ENVIADO: hay otro envio en curso"); return t; }
   huboEnvio = true;
   ultimoEnvioMs = millis();
-  if (desdeDemo) marcarDemoEnvio();   // antes de enviar: si se reinicia, no repite
-  Serial.printf("    MENS: envio pedido \"%s\" (broadcast, canal primario)%s\n", msg,
-                desdeDemo ? " [script de demo]" : "");
+  Serial.printf("    MENS: envio pedido \"%s\" (broadcast, canal primario)\n", msg);
   snprintf(t, n, "ENVIANDO: %s", msg);
   return t;
 }
@@ -186,8 +170,8 @@ void setup() {
   Serial.println("\n===== dinopad_pipboy =====");
   Serial.printf("Botones: NEGRO=%u BLANCO=%u ROJO=%u (INPUT_PULLUP, presionado=LOW)\n",
                 PIN_BTN_NEGRO, PIN_BTN_BLANCO, PIN_BTN_ROJO);
-  Serial.printf("ENVIAR_MENSAJE=%s  firmware=%s  demo ya envio: %s\n", ENVIAR_MENSAJE ? "true" : "false",
-                ID_FIRMWARE, demoYaEnvio() ? "si" : "no");
+  Serial.printf("ENVIAR_MENSAJE=%s (el guion de demo nunca envia por radio)\n",
+                ENVIAR_MENSAJE ? "true" : "false");
 
   pinMode(PIN_BTN_NEGRO, INPUT_PULLUP);
   pinMode(PIN_BTN_BLANCO, INPUT_PULLUP);

@@ -166,8 +166,9 @@ Datos simulados (todos con rótulo DEMO amarillo): BPM y SpO2 de VITAL
 Pruebas en la PC (solo g++): `test/verificar_botones.sh`, `test/verificar_historial.sh`,
 `test/verificar_nodos.sh`, `test/verificar_vitales.sh` y `test/verificar_posicion.sh`.
 
-Con `ENVIAR_MENSAJE = true`, el script de demo envía "Estoy bien" una sola vez por firmware
-subido (se recuerda en NVS) y con botones hay 30 s mínimo entre envíos.
+Con `ENVIAR_MENSAJE = true`, solo ROJO (botón real) envía por radio, con 30 s mínimo entre
+envíos. El guion de `DEMO_AUTOMATICO` **nunca** envía por radio: el envío se simula en
+pantalla ("Ultimo DEMO: ENVIO SIMULADO: …").
 
 Arquitectura: la conexión BLE (`conexion_ble.*`) corre en una tarea FreeRTOS en el
 núcleo 0 y escribe en una estructura compartida con mutex (`compartido.*`); el
