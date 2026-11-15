@@ -1,7 +1,13 @@
-.node-sim-panel { position: absolute; z-index: 700; top: 12px; right: 12px; display: grid; width: min(390px, calc(100% - 24px)); max-height: calc(100% - 24px); gap: 12px; overflow-y: auto; padding: 14px; border: 1px solid var(--line-bright); border-radius: 10px; background: rgba(5, 11, 22, .96); box-shadow: 0 12px 32px #0008; color: var(--text); }
-.node-sim-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.node-sim-panel { position: absolute; z-index: 700; top: 12px; right: 12px; display: grid; grid-template-rows: auto minmax(0, 1fr); width: min(390px, calc(100% - 24px)); max-height: calc(100% - 24px); gap: 12px; overflow: hidden; padding: 14px; border: 1px solid var(--line-bright); border-radius: 10px; background: rgba(5, 11, 22, .96); box-shadow: 0 12px 32px #0008; color: var(--text); }
+.node-sim-panel.is-collapsed { grid-template-rows: auto; width: max-content; max-width: calc(100% - 24px); max-height: none; }
+.node-sim-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .node-sim-heading h3 { margin-top: 5px; font-size: 15px; font-weight: 600; }
 .node-sim-heading .tag { flex: 0 0 auto; padding: 4px 6px; font-size: 8px; }
+.node-sim-panel.is-collapsed .node-sim-heading .eyebrow, .node-sim-panel.is-collapsed .node-sim-heading .tag { display: none; }
+.node-sim-toggle { display: grid; width: 28px; height: 28px; flex: 0 0 28px; place-items: center; padding: 0; border: 1px solid var(--line-bright); border-radius: 6px; background: var(--panel-hi); color: var(--accent); font-size: 18px; line-height: 1; cursor: pointer; }
+.node-sim-toggle:hover { border-color: var(--accent); background: var(--accent-bg); }
+.node-sim-body { display: grid; min-height: 0; gap: 12px; overflow-y: auto; }
+.node-sim-body[hidden] { display: none; }
 .node-sim-controls { display: grid; gap: 9px; }
 .node-sim-controls label, .node-sim-field { display: grid; gap: 5px; color: var(--muted); font-size: 10px; }
 .node-sim-controls label > span { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
@@ -39,4 +45,4 @@
 .node-sim-icon { border: 0; background: transparent; }
 .node-sim-marker { display: grid; width: 28px; height: 28px; place-items: center; border: 2px solid #d5eaff; border-radius: 50%; background: #0a1424ee; color: #b7dcff; font: 600 11px system-ui, sans-serif; box-shadow: 0 0 12px #5aa9ff99; }
 .node-sim-marker-sensecap { border-color: #8de8bd; color: #8de8bd; box-shadow: 0 0 12px #5fd3a099; }
-@media (max-width: 720px) { .node-sim-panel { top: 8px; right: 8px; width: min(360px, calc(100% - 16px)); max-height: calc(100% - 16px); padding: 11px; } }
+@media (max-width: 720px) { .node-sim-panel { top: 8px; right: 8px; width: min(360px, calc(100% - 16px)); max-height: calc(100% - 16px); padding: 11px; } .node-sim-panel.is-collapsed { max-width: calc(100% - 16px); } }
