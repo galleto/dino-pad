@@ -144,6 +144,7 @@ Notas:
 | BLANCO | pestaña siguiente (al soltar); dentro de TRACK: página siguiente; dentro de MENS: mensaje siguiente |
 | ROJO corto | entrar a la pestaña |
 | ROJO largo (0.8 s) | volver / cerrar SOS |
+| `msg N` por el serial (115200) | sin botones soldados: manda el mensaje predeterminado N (0-7) como ROJO en MENS (a la base y por LoRa). `msg` solo lista los mensajes. Abrir el puerto reinicia la placa: espera a que conecte el BLE |
 | NEGRO + BLANCO 3 s | pantalla de SOS y, con red, **alerta SOS a la base** (`dinopad/alertas`). El SOS del guion `demo.h` nunca se envía |
 
 Pestañas: ESTADO, AMBIENTE, TRACK, VITAL, MENS. Etapas:

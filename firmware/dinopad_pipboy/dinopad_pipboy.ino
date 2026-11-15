@@ -8,6 +8,9 @@
 //   manda a la base (web, por Wi-Fi) y por el T1000-E (LoRa, broadcast, canal primario)
 //   si ENVIAR_MENSAJE = true. Los mensajes de la base salen en pantalla completa;
 //   cualquier boton los cierra (y la base ve "leido").
+//   Por el serial (placas sin botones soldados), una linea por comando:
+//     msg N   manda el mensaje predeterminado N (0-7) como si una persona lo eligiera en MENS
+//             y pulsara ROJO: a la base y por LoRa. "msg" solo lista los mensajes.
 //   NEGRO + BLANCO   SOS, sostenidos 3 s: pantalla SOS y, con red, alerta SOS a la base
 //                    (dinopad/alertas). El SOS del guion de demo.h NUNCA se envia.
 //
@@ -194,6 +197,31 @@ static void manejarEvento(Evento e, bool desdeDemo) {
   ultimoRefresco = 0;   // rellenar la pestana nueva ya
 }
 
+// Comandos por el serial (ver arriba). Una persona los escribe: NO son del guion DEMO.
+static void comandoSerial() {
+  static char linea[24];
+  static uint8_t n = 0;
+  while (Serial.available()) {
+    char c = (char)Serial.read();
+    if (c != '\n' && c != '\r') { if (n < sizeof linea - 1) linea[n++] = c; continue; }
+    linea[n] = 0;
+    n = 0;
+    if (strncmp(linea, "msg", 3) != 0) continue;
+    int i = -1;
+    if (sscanf(linea + 3, "%d", &i) != 1 || i < 0 || i >= N_MENSAJES) {
+      for (int k = 0; k < N_MENSAJES; k++) Serial.printf("  msg %d  %s\n", k, MENSAJES_PREDETERMINADOS[k]);
+      continue;
+    }
+    Serial.printf("[SERIAL] msg %d: %s\n", i, MENSAJES_PREDETERMINADOS[i]);
+    if (modo == Modo::SOS) modo = modoAntesSos;
+    pestana = P_MENS;
+    modo = Modo::DENTRO;
+    ui::elegirMensaje(i);
+    ui::cambioDePestana(pestana, modo);
+    manejar(Evento::SELECCIONAR, false);   // mismo camino que ROJO dentro de MENS
+  }
+}
+
 // Cierra el mensaje de la base; con 'leido' la base sabe que alguien lo cerro con un boton.
 static void cerrarMensajeBase(bool leido) {
   msgBaseVisible = false;
@@ -229,6 +257,7 @@ void setup() {
 
 void loop() {
   uint32_t ahora = millis();
+  comandoSerial();
   botones.actualizar(!digitalRead(PIN_BTN_NEGRO), !digitalRead(PIN_BTN_BLANCO),
                      !digitalRead(PIN_BTN_ROJO), ahora);
   for (Evento e; (e = botones.siguienteEvento()) != Evento::NINGUNO;) {

@@ -735,6 +735,7 @@ static void contenidoMens(Modo modo) {
 
 void moverCursorMens(int delta) { cursorMens = (cursorMens + N_MENSAJES + delta) % N_MENSAJES; }
 const char* mensajeSeleccionado() { return MENSAJES_PREDETERMINADOS[cursorMens]; }
+void elegirMensaje(int i) { if (i >= 0 && i < N_MENSAJES) cursorMens = i; }
 
 void moverPaginaTrack(int delta) {
   paginaTrack += delta;

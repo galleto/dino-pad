@@ -32,6 +32,7 @@ void reiniciarPaginaTrack();
 // MENS: dentro de la pestana, NEGRO/BLANCO mueven el cursor de los mensajes predeterminados.
 void moverCursorMens(int delta);
 const char* mensajeSeleccionado();
+void elegirMensaje(int i);   // pone el cursor de MENS en el mensaje i (comando serial "msg i")
 
 void barraSos(float progreso);   // 0..1
 void borrarBarraSos();
