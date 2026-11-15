@@ -126,6 +126,40 @@ async def flujo():
         st = await recibir(wd3, lambda m: m.get("type") == "status")
         ok(st is not None and st["batteryPct"] == 55, "lo que entra por HTTPS sale por /ws/device")
 
+        # Mensajes en los dos sentidos
+        def post_json(ruta, cuerpo):
+            req = urllib.request.Request(f"{BASE}{ruta}", data=json.dumps(cuerpo).encode(), method="POST", headers={"Content-Type": "application/json"})
+            try:
+                with urllib.request.urlopen(req) as r:
+                    return r.status, json.load(r)
+            except urllib.error.HTTPError as e:
+                return e.code, None
+        subida = {"mensajes": [{"tema": "dinopad/mensajes", "datos": {"crewId": "comandante", "deviceId": "dinopad-82a4",
+                  "text": "Necesito ayuda medica", "timestamp": 0, "lora": "ENVIANDO"}}]}
+        async with websockets.connect(f"{WS}/ws/alerts") as wa2:
+            codigo, res = post(subida, TOKEN)
+            m = await recibir(wd3, lambda x: x.get("type") == "mensaje" and x.get("direccion") == "subida")
+            ok(codigo == 200 and m is not None and m["texto"] == "Necesito ayuda medica", "mensaje de la placa llega a /ws/device")
+            al = await recibir(wa2, lambda x: "Mensaje de" in (x.get("title") or ""))
+            ok(al is not None and al["level"] == "warning" and "sos" not in (al["title"] + al["action"]).lower(),
+               "y crea una alerta de atención (sin la palabra sos)")
+        post({"mensajes": [{"tema": "dinopad/lora", "datos": {"crewId": "comandante", "deviceId": "dinopad-82a4", "estado": "ACK", "timestamp": 0}}]}, TOKEN)
+        m = await recibir(wd3, lambda x: x.get("type") == "mensaje" and x.get("lora") == "ACK")
+        ok(m is not None, "estado LoRa (ACK) actualiza el mensaje")
+        codigo, b = post_json("/api/device/message", {"crewId": "comandante", "texto": "Ayuda en camino, quédate ahí \"ya\""})
+        ok(codigo == 200 and b["texto"] == "Ayuda en camino, quedate ahi ya" and b["estado"] == "pendiente", f"mensaje de la base sin acentos ni comillas: {b and b['texto']}")
+        ok(post_json("/api/device/message", {"crewId": "comandante", "texto": "otro"})[0] == 429, "pausa entre mensajes de la base (429)")
+        codigo, res = post({"mensajes": [{"tema": "dinopad/ui", "datos": json.loads(UI)}]}, TOKEN)
+        ok(len(res["bajada"]) == 1 and res["bajada"][0]["id"] == b["id"], "la siguiente ingesta de la placa trae el mensaje de la base")
+        codigo, res2 = post({"mensajes": [{"tema": "dinopad/ui", "datos": json.loads(UI)}]}, TOKEN)
+        ok(res2["bajada"] == [], "no se repite mientras espera el acuse (12 s)")
+        post({"mensajes": [{"tema": "dinopad/acuse", "datos": {"crewId": "comandante", "id": b["id"], "estado": "mostrado", "timestamp": 0}}]}, TOKEN)
+        m = await recibir(wd3, lambda x: x.get("type") == "mensaje" and x.get("id") == b["id"] and x.get("estado") == "mostrado")
+        ok(m is not None, "acuse «mostrado» llega a la web")
+        with urllib.request.urlopen(f"{BASE}/api/device/messages?crewId=comandante") as r:
+            hist = json.load(r)
+        ok(len(hist) == 2 and not any(k.startswith("_") for k in hist[-1]), "historial con los 2 mensajes y sin campos internos")
+
 
 def main():
     settings.mqtt_host = "127.0.0.1"

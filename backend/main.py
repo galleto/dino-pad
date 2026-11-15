@@ -31,7 +31,8 @@ from backend.db import (
 )
 from backend.models import VitalReading, AlertMessage, DeviceStatus, DeviceUi
 from backend.mqtt_client import mqtt_service
-from backend.rules import evaluate_reading, evaluate_alert_message
+from backend.rules import evaluate_reading, evaluate_alert_message, CREW
+from backend import mensajes as msj
 from backend.gemini_service import explain_alert_background
 from backend.websocket_manager import ws_manager
 
@@ -231,6 +232,28 @@ def get_device_snapshot() -> dict:
     return {"status": list(_memory_devices.values()), "ui": list(_ultimo_ui.values())}
 
 
+def handle_mensaje_subida(m: msj.MensajeSubida):
+    """Mensaje elegido en la pestaña MENS de la placa: a la web y a Alertas."""
+    _con_hora(m)
+    guardado = msj.registrar_subida(m)
+    ws_manager.broadcast_device_threadsafe({"type": "mensaje", **msj.publico(guardado)})
+    alerta = msj.alerta_de_subida(guardado, CREW.get(m.crewId, {}).get("name", m.crewId))
+    save_alert(alerta)
+    ws_manager.broadcast_alert_threadsafe(alerta)
+
+
+def handle_acuse(ac: msj.AcuseMensaje):
+    m = msj.registrar_acuse(ac)
+    if m:
+        ws_manager.broadcast_device_threadsafe({"type": "mensaje", **msj.publico(m)})
+
+
+def handle_lora(est: msj.EstadoLora):
+    m = msj.actualizar_lora(est)
+    if m:
+        ws_manager.broadcast_device_threadsafe({"type": "mensaje", **msj.publico(m)})
+
+
 class MensajeDispositivo(BaseModel):
     tema: str      # dinopad/vitals | dinopad/alertas | dinopad/estado | dinopad/ui
     datos: dict    # el mismo JSON que iría por MQTT
@@ -245,6 +268,9 @@ _RUTAS_INGESTA = {
     "dinopad/alertas": (AlertMessage, lambda m: handle_incoming_alert_msg(m)),
     "dinopad/estado": (DeviceStatus, lambda m: handle_device_status(m)),
     "dinopad/ui": (DeviceUi, lambda m: handle_device_ui(m)),
+    "dinopad/mensajes": (msj.MensajeSubida, lambda m: handle_mensaje_subida(m)),
+    "dinopad/acuse": (msj.AcuseMensaje, lambda m: handle_acuse(m)),
+    "dinopad/lora": (msj.EstadoLora, lambda m: handle_lora(m)),
 }
 
 
@@ -273,7 +299,29 @@ def api_device_ingest(lote: LoteDispositivo, x_device_token: str = Header(defaul
             rechazados.append({"i": i, "error": ve.errors(include_url=False)[:2]})
     if rechazados:
         logger.warning("[INGESTA] %d aceptados, %d rechazados: %s", aceptados, len(rechazados), rechazados[:3])
-    return {"aceptados": aceptados, "rechazados": rechazados}
+    # Mensajes de la base para los tripulantes de este lote (la placa los muestra en pantalla)
+    crews = {m.datos.get("crewId") for m in lote.mensajes if isinstance(m.datos.get("crewId"), str)}
+    return {"aceptados": aceptados, "rechazados": rechazados, "bajada": msj.pendientes_para(crews)}
+
+
+@app.post("/api/device/message", tags=["Dispositivo"])
+def api_device_message(req: msj.MensajeBajada):
+    """Mensaje de la base al DINO PAD del tripulante. Se entrega en la siguiente ingesta (~3 s).
+    El texto se pasa a ASCII (la pantalla no tiene acentos) y se corta a 60 caracteres."""
+    try:
+        m = msj.crear_bajada(req)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=429, detail=str(e))
+    ws_manager.broadcast_device_threadsafe({"type": "mensaje", **msj.publico(m)})
+    return msj.publico(m)
+
+
+@app.get("/api/device/messages", tags=["Dispositivo"])
+def api_device_messages(crewId: Optional[str] = Query(None), limit: int = Query(50, ge=1, le=200)):
+    """Historial de mensajes base <-> DINO PAD (en memoria; se borra al reiniciar el servidor)."""
+    return [msj.publico(m) for m in msj.historial(crewId, limit)]
 
 
 @app.get("/api/device/latest", tags=["Dispositivo"])
