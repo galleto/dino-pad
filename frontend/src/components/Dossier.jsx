@@ -1,10 +1,12 @@
 // Dossier.jsx · Ficha lateral de una zona del cuerpo: función, valor y gráfica, rango,
 // por qué la afecta el espacio (peligro HRP), qué hacer y cuándo avisar a tierra.
 // Muestra los textos what / why / how / action de crewData.js. Solo presentación.
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { HAZARDS } from '../data/crewData';
 import { getRanges, getStatus, STATUS_LABEL } from '../services/health';
 import Origen from './Origen';
+import { ENTORNOS, retrasoDe, textoRetraso } from './entornos';
+import { entornoStore, useStore } from './estadoMision';
 import { CUANDO_AVISAR, URL_PELIGROS, URL_RIESGOS, ZONA_INFO } from './zonasCuerpo';
 
 function Grafica({ readings, ranges, unit }) {
@@ -36,6 +38,9 @@ function Seccion({ titulo, children, id, resaltar, refEl }) {
 export default function Dossier({ zonaId, crew, indicators, latest, history, foco, onClose }) {
   const info = ZONA_INFO[zonaId];
   const indicator = indicators[zonaId];
+  const [entornoId] = useStore(entornoStore);
+  const entorno = ENTORNOS[entornoId] || ENTORNOS.marte;
+  const [retraso] = useState(() => retrasoDe(entorno.id, Date.now()));
   const porqueRef = useRef(null);
   const cajaRef = useRef(null);
   useEffect(() => {
@@ -101,6 +106,7 @@ export default function Dossier({ zonaId, crew, indicators, latest, history, foc
           <ul className="dossier-avisar">
             {CUANDO_AVISAR.map((regla) => <li key={regla.status} className={`st-${regla.status}${regla.status === status ? ' is-actual' : ''}`}><span className="st-glyph" />{regla.texto}</li>)}
           </ul>
+          <p className="dossier-nota">{retraso >= 60 ? `En ${entorno.nombre.toLowerCase()} una respuesta de tierra tarda al menos ${textoRetraso(retraso * 2)} (ida y vuelta, estimado): actúa primero con tu tripulación.` : `En ${entorno.nombre.toLowerCase()} la Tierra puede responder casi de inmediato.`}</p>
           <p className="dossier-nota">Regla del proyecto, no un protocolo médico.</p>
         </Seccion>
       )}

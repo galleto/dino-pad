@@ -5,6 +5,7 @@ import { AlertsPage, CrewPage, EmergencyPage, EmptyPage, HistoryPage, LabPage, M
 import Starfield from './components/Starfield';
 import DinoPadPage from './components/DinoPadPage';
 import Tormenta from './components/Tormenta';
+import BarraMision from './components/BarraMision';
 import { tormentaStore, useStore } from './components/estadoMision';
 import { ClaveOrigen } from './components/Origen';
 import './styles/tokens.css';
@@ -122,6 +123,7 @@ function App() {
           {connectionState === 'offline' && <div className="data-cached cache-banner" role="status">SIN ENLACE · Datos en caché {lastCachedAt ? `guardados ${new Date(lastCachedAt).toLocaleString('es')}` : 'sin historial local guardado'}.</div>}
           <div className="page-enter" key={route}>{route === 'monitoreo' ? <MonitorPage /> : route === 'alertas' ? <AlertsPage /> : route === 'historial' ? <HistoryPage /> : route === 'tendencias' ? <TrendsPage /> : route === 'tripulacion' ? <CrewPage /> : route === 'riesgos' ? <RisksPage /> : route === 'emergencia' ? <EmergencyPage /> : route === 'laboratorio' ? <LabPage /> : route === 'dinopad' ? <DinoPadPage /> : <EmptyPage title={PAGE_TITLES[route]} description="Módulo de misión." />}</div>
         </main>
+        <BarraMision />
         <footer className="app-footer"><span>DINOPAD · NASA SPACE APPS 2026</span><span className="sidebar-bottom"><span className="status-dot" /> SISTEMA OPERATIVO <small>CONTROL DE MISIÓN · 2026</small></span><span>Prototipo de monitoreo · No es un dispositivo médico</span></footer>
       </div>
     </div>

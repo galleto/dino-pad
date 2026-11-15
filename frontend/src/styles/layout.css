@@ -152,3 +152,30 @@
   .tormenta-pasos li:not(.is-actual) p { display: none; }
   .tormenta-pie { flex-direction: column; align-items: flex-start; }
 }
+
+/* ---------- Barra de misión (BarraMision.jsx) ---------- */
+.barra-mision { position: sticky; z-index: 14; bottom: 0; display: flex; align-items: center; gap: 0; padding: 0 28px; border-top: 1px solid var(--line-bright); background: #080d0af2; backdrop-filter: blur(10px); font-size: var(--t-xs); }
+.modo-tormenta .barra-mision { background: #120807f2; }
+.bm-dato { display: grid; gap: 0; padding: 6px 18px 6px 0; margin-right: 18px; border-right: 1px solid var(--line); line-height: 1.3; }
+.bm-dato > span:first-child { color: var(--muted); font-size: 10px; white-space: nowrap; }
+.bm-dato strong { color: var(--green); font-size: var(--t-lg); font-weight: 500; white-space: nowrap; text-shadow: var(--glow-soft); }
+.bm-retraso { grid-template-columns: auto auto; column-gap: 14px; align-items: center; }
+.bm-retraso > span:first-child { grid-column: 1 / -1; }
+.bm-senal { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; }
+.bm-senal b { font-weight: 400; }
+.bm-senal i { position: relative; display: block; width: 86px; height: 1px; background: repeating-linear-gradient(90deg, var(--line-bright) 0 3px, transparent 3px 6px); }
+.bm-senal u { position: absolute; top: -2px; left: 0; width: 12px; height: 5px; background: linear-gradient(90deg, transparent, var(--green)); box-shadow: 4px 0 8px var(--green); animation: senal linear infinite; }
+@keyframes senal { from { left: 0; opacity: 1; } 90% { opacity: 1; } to { left: calc(100% - 12px); opacity: 0; } }
+.bm-entorno select { min-height: 0; padding: 1px 4px; border-color: var(--line-bright); color: var(--green); font-size: var(--t-md); }
+.bm-nota { min-width: 0; flex: 1; overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
+.bm-acciones { display: flex; gap: 0; margin-left: 16px; }
+.bm-acciones button { margin-left: -1px; padding: 5px 10px; border: 1px solid var(--line-bright); background: transparent; color: var(--muted); font-size: var(--t-xs); white-space: nowrap; cursor: pointer; }
+.bm-acciones button:hover { color: var(--green); }
+.bm-acciones button[aria-pressed="true"] { color: #081009; background: var(--green); border-color: var(--green); }
+@media (max-width: 1500px) { .bm-nota { display: none; } .bm-acciones { margin-left: auto; } }
+@media (max-width: 1100px) {
+  .barra-mision { position: static; flex-wrap: wrap; gap: 6px 0; padding: 8px 16px; }
+  .bm-nota { display: block; flex-basis: 100%; white-space: normal; }
+  .bm-acciones { margin-left: 0; }
+}
+@media (max-width: 720px) { .barra-mision { padding-inline: 12px; } .bm-dato { margin-right: 12px; padding-right: 12px; } .bm-senal { display: none; } }
