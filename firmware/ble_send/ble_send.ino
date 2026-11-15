@@ -35,6 +35,19 @@ static const uint32_t ESCANEO_MAX_MS   = 15000;
 static const uint32_t ESPERA_COLA_MS   = 15000;   // tiempo para ver el queueStatus del envio
 static const uint32_t SONDEO_MS        = 10000;   // lectura de FromRadio aunque no avise FromNum
 static const int      MAX_PAQUETES_CFG = 600;     // tope de lecturas al drenar FromRadio
+// ===== DIAGNOSTICO DE ALIMENTACION (brownout al encender el BLE) =====
+// Cada paso incluye a los anteriores:
+//   '0' sin cambios
+//   'A' esperar RETRASO_BLE_MS tras iniciar la pantalla antes de iniciar el BLE
+//   'B' A + potencia de TX reducida: NimBLEDevice::setPower(dBm) (NimBLE-Arduino 2.x,
+//       docs/1.x_to2.x_migration_guide.md: "only an integer value in dbm units")
+//   'C' B + escaneo pasivo (setActiveScan(false)): no transmite peticiones de escaneo
+//   'D' C + CPU a 80 MHz (ESP-IDF Power Management: con BT activo, CPU 80 / APB 80 MHz)
+// El detector de brownout NO se desactiva.
+#define PASO_DIAG '0'
+static const uint32_t RETRASO_BLE_MS  = 3000;
+static const int8_t   POTENCIA_TX_DBM = -12;   // minimo del ESP32 (ESP_PWR_LVL_N12)
+
 // true = borra los emparejamientos guardados en el ESP32 al arrancar
 // (usar si se cambia el PIN del T1000-E o si el emparejamiento quedo mal)
 static const bool     BORRAR_BONDS     = false;
@@ -219,8 +232,12 @@ static bool escribirToRadio(const uint8_t* d, size_t n) {
 }
 
 void setup() {
+#if PASO_DIAG >= 'D' && PASO_DIAG <= 'D'
+  setCpuFrequencyMhz(80);
+#endif
   Serial.begin(115200);
   delay(500);
+  Serial.printf("\nDIAG paso %c: CPU %lu MHz\n", PASO_DIAG, (unsigned long)getCpuFrequencyMhz());
   Serial.println("\n===== ble_send: ESP32 -> T1000-E (Meshtastic) =====");
   if (ENVIAR_MENSAJE) Serial.printf("Mensaje: \"%s\"  destino: broadcast, canal primario\n", MENSAJE);
   else Serial.println("ENVIAR_MENSAJE = false: solo se leen datos, no se envia nada");
@@ -235,7 +252,18 @@ void setup() {
   NimBLEAddress tmp(std::string(MAC_TEXTO), BLE_ADDR_PUBLIC);
   memcpy(macObjetivo, tmp.getVal(), 6);
 
+#if PASO_DIAG >= 'A' && PASO_DIAG <= 'D'
+  Serial.printf("DIAG: esperando %lu ms antes de iniciar el BLE\n", (unsigned long)RETRASO_BLE_MS);
+  delay(RETRASO_BLE_MS);
+#endif
+  Serial.println("DIAG: iniciando BLE (NimBLEDevice::init)");
   NimBLEDevice::init("dinopad");
+  Serial.println("DIAG: BLE iniciado");
+#if PASO_DIAG >= 'B' && PASO_DIAG <= 'D'
+  bool okPot = NimBLEDevice::setPower(POTENCIA_TX_DBM);
+  Serial.printf("DIAG: setPower(%d dBm) %s -> getPower()=%d dBm\n", POTENCIA_TX_DBM,
+                okPot ? "ok" : "FALLO", NimBLEDevice::getPower());
+#endif
   NimBLEDevice::setMTU(512);                                // la doc recomienda MTU 512
   NimBLEDevice::setSecurityAuth(true, true, true);          // bonding, MITM, secure connections
   NimBLEDevice::setSecurityIOCap(BLE_HS_IO_KEYBOARD_ONLY);  // el ESP32 "teclea" el PIN
@@ -250,7 +278,12 @@ void setup() {
   iniciarPaso(1, msg);
   NimBLEScan* scan = NimBLEDevice::getScan();
   scan->setScanCallbacks(&callbacksEscaneo, false);
+#if PASO_DIAG >= 'C' && PASO_DIAG <= 'D'
+  scan->setActiveScan(false);   // pasivo: el nombre puede no llegar, se busca por MAC
+  Serial.println("DIAG: escaneo pasivo");
+#else
   scan->setActiveScan(true);
+#endif
   scan->setInterval(100);
   scan->setWindow(99);
   scan->setMaxResults(0);   // no guardar resultados (hay cientos de anuncios alrededor)

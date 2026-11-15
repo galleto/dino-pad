@@ -37,3 +37,10 @@ cp "$PROTOS/LICENSE" "$DST/LICENSE-meshtastic-protobufs.txt"
 # Arduino compila src/ sin rutas de include extra: todo plano en src/mtpb
 sed -i 's#\#include "meshtastic/\([a-z_]*\.pb\.h\)"#\#include "\1"#' "$DST"/*.pb.[ch]
 echo "listo: $DST"
+
+# dinopad_pipboy usa el mismo codigo generado (Arduino solo compila src/ del sketch)
+PIP="$AQUI/../dinopad_pipboy"
+if [ -d "$PIP" ]; then
+  rm -rf "$PIP/src/mtpb" && mkdir -p "$PIP/src" && cp -r "$DST" "$PIP/src/mtpb"
+  echo "copiado a: $PIP/src/mtpb"
+fi

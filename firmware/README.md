@@ -8,6 +8,8 @@ ILI9341 de 2.8" y conexión BLE a un SenseCAP Card Tracker T1000-E con Meshtasti
 | `ble_send/` | Se conecta por BLE al T1000-E con PIN, lee su configuración y telemetría (Nanopb) y las muestra en la pantalla. Con `ENVIAR_MENSAJE = true` manda **un** mensaje de texto por broadcast. |
 | `ble_scan/` | Escáner BLE: lista los nodos Meshtastic cercanos (sin repetidos) y marca el T1000-E objetivo. |
 | `dinopad/` | Panel de telemetría por Wi-Fi + MQTT, con tres botones (ping, sensores simulados, SOS). |
+| `dinopad_pipboy/` | Menú de 5 pestañas con los 3 botones y datos del T1000-E por BLE (en desarrollo por etapas; ver abajo). Sin Wi-Fi, no envía nada. |
+| `test_ble_minimo/` | Solo `NimBLEDevice::init()` e imprime "BLE OK": para ver si una placa aguanta encender el BLE (brownout). |
 | `test_botones/` | Encuentra a qué GPIO está soldado cada botón (muestra "GPIO n" al presionar). |
 | `test_rotacion/`, `test_geometria/`, `test_madctl/` | Pruebas de la pantalla que se usaron para encontrar la orientación correcta. |
 | `libraries/dinopad_pines/` | `pines.h`: **único** lugar con los pines de la pantalla y los botones y la orientación del panel. |
@@ -44,6 +46,9 @@ se genera a partir de archivos GPL-3.0 (ver Licencias). Antes de compilar
 ```sh
 firmware/ble_send/tools/generar_nanopb.sh
 ```
+
+El script lo genera en `ble_send/src/mtpb/` y copia lo mismo a
+`dinopad_pipboy/src/mtpb/` (los dos están en `firmware/.gitignore`).
 
 ## Compilar
 
@@ -119,6 +124,7 @@ Al principio de `ble_send/ble_send.ino`:
 | `MAC_TEXTO` | MAC del T1000-E | El tracker al que se conecta. |
 | `VOLCADO_CONFIG` | `true` | Imprime cada paquete de la configuración inicial. |
 | `BORRAR_BONDS` | `false` | `true` borra los emparejamientos guardados en el ESP32 (úsalo si cambiaste el PIN). |
+| `PASO_DIAG` | `'0'` | Diagnóstico de brownout: `'A'` BLE retrasado 3 s, `'B'` + potencia TX −12 dBm, `'C'` + escaneo pasivo, `'D'` + CPU 80 MHz. `'0'` = normal. Ninguno evitó el brownout (ver Registro de placas). |
 
 Notas:
 - El T1000-E solo acepta un cliente BLE a la vez: desconecta la app del celular mientras usas el ESP32.
@@ -127,6 +133,32 @@ Notas:
 - Fuentes: [API de cliente de Meshtastic](https://meshtastic.org/docs/development/device/client-api/),
   [configuración Bluetooth](https://meshtastic.org/docs/configuration/radio/bluetooth/),
   [telemetría](https://meshtastic.org/docs/configuration/module/telemetry/).
+
+## `dinopad_pipboy`: menú con botones y datos del tracker
+
+| Botón | Acción |
+|---|---|
+| NEGRO | pestaña anterior (al soltar) |
+| BLANCO | pestaña siguiente (al soltar) |
+| ROJO corto | entrar a la pestaña |
+| ROJO largo (0.8 s) | volver / cerrar SOS |
+| NEGRO + BLANCO 3 s | pantalla de SOS (**solo pantalla, no envía nada**) |
+
+Pestañas: ESTADO, AMBIENTE, TRACK, VITAL, MENS. Etapas:
+
+| Etapa | Pestaña | Estado |
+|---|---|---|
+| 1 | ESTADO: conexión, RSSI, batería, voltaje, uso de canal, uptime (con colores y antigüedad; gris si es viejo) + reconexión automática | hecha; sin probar con BLE por los brownouts |
+| 2 | AMBIENTE: temperatura y luz con gráfica | pendiente |
+| 3 | TRACK: posición propia y lista de nodos | pendiente |
+| 4 | VITAL: BPM/SpO2 simulados ("DEMO") | pendiente |
+| 5 | MENS: mensajes recibidos | pendiente |
+
+Arquitectura: la conexión BLE (`conexion_ble.*`) corre en una tarea FreeRTOS en el
+núcleo 0 y escribe en una estructura compartida con mutex (`compartido.*`); el
+`loop()` (botones y pantalla, núcleo 1) solo copia esa estructura cada 250 ms y
+`ui.*` redibuja únicamente los campos que cambiaron. La única escritura al tracker
+es `want_config_id` (configuración local, no sale por radio).
 
 ## `dinopad`: Wi-Fi y broker MQTT
 
@@ -153,7 +185,14 @@ firmware/ble_send/test/verificar.sh /tmp/protobufs                # mensajes ToR
 firmware/ble_send/test/verificar_decodificador.sh /tmp/protobufs  # decodificador FromRadio (Nanopb)
 ```
 
-`verificar.sh` debe terminar con `IDENTICOS (29 bytes)`.
+`verificar.sh` debe terminar con `IDENTICOS (29 bytes)`. `verificar_decodificador.sh`
+necesita haber generado antes `ble_send/src/mtpb/` (ver arriba).
+
+Lógica de los botones del menú (`dinopad_pipboy`), solo necesita `g++`:
+
+```sh
+firmware/dinopad_pipboy/test/verificar_botones.sh   # debe terminar con "TODO OK"
+```
 
 ## Regenerar el código de Nanopb
 
@@ -163,6 +202,39 @@ firmware/ble_send/tools/generar_nanopb.sh /tmp/protobufs
 ```
 
 Usa nanopb 0.4.9.3 en un entorno de Python temporal y reescribe `ble_send/src/mtpb/`.
+
+## Registro de placas
+
+Hay varias placas ESP32 físicamente distintas; se identifican por su MAC
+(`esptool --port <puerto> chip-id`), que está grabada en el chip, y se
+etiquetan con los últimos dos bytes. Todas: ESP32-D0WD-V3 rev. 3.1, puente
+USB CP2102 (aparece como `usb-Silicon_Labs_CP2102_..._0001`, igual en todas:
+**el nombre del puerto no identifica la placa, la MAC sí**).
+
+| Etiqueta | MAC | Qué tiene | Pruebas (14/11/2026) |
+|---|---|---|---|
+| `82:a4` | `48:af:f3:67:82:a4` | Botones soldados (NEGRO=13, BLANCO=26, ROJO=14) + pantalla | Con pantalla y botones: brownout en bucle dentro de `NimBLEDevice::init()` (ble_send, dinopad_pipboy, incluso con la flash borrada y el código de las 17:29). Desde el 18:46 dejó de enumerar por USB a ratos (`error -71`). **Sola, sin pantalla ni botones:** `test_ble_minimo` imprime "BLE OK" y 0 brownouts en 40 s. |
+| `77:e4` | `c8:8a:7b:a9:77:e4` | Pantalla (cristal 40 MHz) | `ble_send` en modo lectura con lo que tiene conectado: 30 brownouts en 60 s, siempre ~0.4 s después de iniciar la pantalla (al iniciar el BLE); nunca llega a `[1/8]`. El USB **no** se desconecta durante los brownouts (sin mensajes del kernel). **`test_ble_minimo` con la pantalla conectada pero sin inicializarla:** 18 brownouts en 40 s, ~20 ms después de empezar `NimBLEDevice::init()`; nunca imprime "BLE OK". |
+
+**Cambio de puerto USB de la PC (`77:e4`, pantalla conectada):** de `usb 1-3`
+(donde estuvo todo el día) a `usb 1-1` (el puerto que usaba el mouse). Se detectó
+como CP2102 en `/dev/ttyUSB0` sin errores `-71` ni ciclos de energía, y esptool
+confirmó la MAC `c8:8a:7b:a9:77:e4`. `test_ble_minimo`: **18 brownouts en 40 s,
+nunca "BLE OK"**, igual que en `usb 1-3`. Cambiar de puerto no lo resolvió;
+`ble_send` no se probó en ese puerto porque el paso previo ya fallaba.
+
+**Conclusión de estas pruebas:** el mismo `test_ble_minimo` funciona en `82:a4`
+sin nada conectado (0 brownouts) y falla en `77:e4` con la pantalla conectada
+aunque el sketch nunca la inicialice. El problema es el **consumo estático de la
+pantalla** (sobre todo la retroiluminación) sumado al pico de corriente del radio
+al encender el BLE, no el software. Posibles arreglos de hardware (revisar
+antes el esquema del módulo de pantalla: en muchos el pin LED espera 3.3 V):
+sacar la retroiluminación del regulador de 3.3 V del ESP32 (por ejemplo, con un
+transistor desde 5 V y su resistencia), un capacitor de 100–470 µF entre 3V3 y
+GND cerca del ESP32, o una fuente/cable USB que entregue más corriente.
+
+Nota: la placa con la que `ble_send` conectó sin problemas a las 17:29 no tiene
+la MAC registrada, así que no se sabe si era alguna de estas.
 
 ## Problemas comunes
 

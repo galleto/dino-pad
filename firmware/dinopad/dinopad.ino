@@ -2,6 +2,7 @@
 #include <PubSubClient.h>
 #include <SPI.h>
 #include <Adafruit_GFX.h>
+#include <pines.h>   // firmware/libraries/dinopad_pines: pantalla y botones
 
 // ===== DRIVER DE LA PANTALLA =====
 // 0 = ILI9341   1 = ST7789
@@ -19,30 +20,21 @@ const char* password    = "";                // red abierta, sin contraseña
 const char* mqtt_server = "10.105.67.207"; // IPv4 de la PC en "PC Puma FI" (DHCP: revisar si cambia)
 const int   mqtt_port   = 1883;
 
-// ===== PINES (tu cableado) =====
-#define TFT_CS      5
-#define TFT_DC      2
-#define TFT_RST     4
-#define BTN_NEGRO   13
-#define BTN_BLANCO  14
-#define BTN_ROJO    26
-
-// ===== CONFIGURACIÓN PANTALLA =====
-// Orientacion (firmware/test_geometria y firmware/test_madctl): el panel es
-// 320x240 "nativo". setRotation(1) deja la libreria en 320x240 y JUSTO DESPUES
-// se escribe MADCTL (0x36): horizontal, sin espejo, (0,0) arriba a la izquierda.
-#define ROTACION     1
+// ===== PINES Y PANTALLA =====
+// Pines, rotacion, MADCTL y SPI vienen de pines.h. Botones (medidos con
+// firmware/test_botones): NEGRO=13, BLANCO=26, ROJO=14.
+#define ROTACION     TFT_ROTACION
 #if DRIVER == 0
-  #define MADCTL_VALOR 0x48   // ILI9341: valor elegido con test_madctl
+  #define MADCTL_VALOR TFT_MADCTL   // ILI9341: 0x48 (pines.h)
 #else
-  #define MADCTL_VALOR 0x68   // ST7789: valor del sketch original (sin probar aqui)
+  #define MADCTL_VALOR 0x68         // ST7789: valor del sketch original (sin probar aqui)
 #endif
-#define SPI_FREQ     10000000   // 10 MHz, como en test_madctl y ble_send
+#define SPI_FREQ     TFT_SPI_FREQ
 
 #if DRIVER == 0
-  Adafruit_ILI9341 tft(TFT_CS, TFT_DC, TFT_RST);
+  Adafruit_ILI9341 tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
 #else
-  Adafruit_ST7789 tft(TFT_CS, TFT_DC, TFT_RST);
+  Adafruit_ST7789 tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
 #endif
 
 // ===== PALETA DE COLORES (RGB565) =====
@@ -313,9 +305,9 @@ void revisarBotones() {
 
   if (millis() - tDebounce < 60) return;
 
-  bool negro  = !digitalRead(BTN_NEGRO);
-  bool blanco = !digitalRead(BTN_BLANCO);
-  bool rojo   = !digitalRead(BTN_ROJO);
+  bool negro  = !digitalRead(PIN_BTN_NEGRO);
+  bool blanco = !digitalRead(PIN_BTN_BLANCO);
+  bool rojo   = !digitalRead(PIN_BTN_ROJO);
 
   if (negro && !prevNegro) {
     tDebounce = millis();
@@ -342,9 +334,9 @@ void setup() {
   Serial.begin(115200);
   delay(200);
 
-  pinMode(BTN_NEGRO, INPUT_PULLUP);
-  pinMode(BTN_BLANCO, INPUT_PULLUP);
-  pinMode(BTN_ROJO, INPUT_PULLUP);
+  pinMode(PIN_BTN_NEGRO, INPUT_PULLUP);
+  pinMode(PIN_BTN_BLANCO, INPUT_PULLUP);
+  pinMode(PIN_BTN_ROJO, INPUT_PULLUP);
 
 #if DRIVER == 0
   tft.begin(SPI_FREQ);
