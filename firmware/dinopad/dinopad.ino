@@ -1,8 +1,13 @@
 #include <WiFi.h>
-#include <PubSubClient.h>
 #include <SPI.h>
 #include <Adafruit_GFX.h>
+#include <sys/time.h>
+#include <time.h>
+#include <atomic>
 #include <pines.h>   // firmware/libraries/dinopad_pines: pantalla y botones
+
+#include "mqtt_client.h"   // esp-mqtt de ESP-IDF (incluido en el core): publica con QoS 1
+#include "contrato.h"      // mensajes de docs/contrato-datos.md (probados: test/verificar_contrato.sh)
 
 // ===== DRIVER DE LA PANTALLA =====
 // 0 = ILI9341   1 = ST7789
@@ -14,11 +19,29 @@
   #include <Adafruit_ST7789.h>
 #endif
 
-// ===== WI-FI Y BROKER HIVEMQ =====
+// ===== WI-FI Y BROKER MQTT =====
 const char* ssid        = ".:PC Puma FI:.";
 const char* password    = "";                // red abierta, sin contraseña
 const char* mqtt_server = "10.105.67.207"; // IPv4 de la PC en "PC Puma FI" (DHCP: revisar si cambia)
 const int   mqtt_port   = 1883;
+
+// ===== IDENTIDAD (docs/contrato-datos.md) =====
+static const char* CREW_ID   = "comandante";   // comandante | botanico | ingeniero
+static const char* DEVICE_ID = "dinopad-01";   // tambien es el client id MQTT
+
+// ===== HORA (NTP, UTC) =====
+// El contrato pide epoch en ms de cuando se mide. Sin NTP no hay hora: las
+// lecturas se descartan y el SOS/ping se manda igual con timestamp 0.
+static const char* NTP_1 = "pool.ntp.org";
+static const char* NTP_2 = "time.nist.gov";
+static const time_t EPOCH_MINIMO = 1700000000;   // antes de esto = reloj sin sincronizar
+
+// ===== ESTADO DEL DISPOSITIVO =====
+static const uint32_t ESTADO_CADA_MS = 30000;
+// El DINO PAD no tiene pin para medir la bateria (Hardware/Hardware/datasheets/PINOUTS.xlsx)
+// y DeviceStatus exige batteryPct 0..100: mientras devuelva -1, dinopad/estado NO se
+// publica (no se inventa el dato). Conectar aqui el ADC cuando exista el divisor.
+static int leerBateriaPct() { return -1; }
 
 // ===== PINES Y PANTALLA =====
 // Pines, rotacion, MADCTL y SPI vienen de pines.h. Botones (medidos con
@@ -47,8 +70,15 @@ const int   mqtt_port   = 1883;
 #define COL_BLANCO     0xFFFF
 #define COL_GRIS       0x8410
 
-WiFiClient espClient;
-PubSubClient client(espClient);
+// ===== MQTT (esp-mqtt) =====
+// Los eventos llegan en la tarea de esp-mqtt: solo tocan estas variables y
+// loop() es quien escribe en pantalla/serial.
+static esp_mqtt_client_handle_t mqtt = nullptr;
+static std::atomic<bool> mqttConectado{false};
+static std::atomic<int> mqttUltimoAck{-1};       // msg_id del ultimo PUBACK (QoS 1)
+static std::atomic<int> mqttErrores{0};
+static int idUltimoSos = -1;
+static char mqttUri[64];
 
 // ===== DISENO (320 x 240, horizontal) =====
 // Fuente por defecto: 6x8 px por caracter * tamano.
@@ -70,27 +100,11 @@ uint16_t consolaColor[MAX_LOGS];
 
 // Estados previos para evitar parpadeo en pantalla
 int ultimoEstadoWifi = -1;
-bool ultimoEstadoMqtt = false;
-int ultimoRcMqtt = 999;
+int ultimoEstadoMqtt = -1;     // -1 = forzar dibujo
+int ultimoNtp = -1;
 unsigned long ultimoRefrescoUi = 0;
-unsigned long ultimoIntentoMqtt = 0;
 
 void actualizarPanelEstado(bool forzar = false);   // declaracion adelantada
-
-const char* textoRc(int rc) {
-  switch (rc) {
-    case -4: return "timeout, broker sin respuesta";
-    case -3: return "conexion perdida";
-    case -2: return "fallo de red (IP/firewall)";
-    case -1: return "desconectado";
-    case  1: return "protocolo rechazado";
-    case  2: return "client ID rechazado";
-    case  3: return "broker no disponible";
-    case  4: return "usuario/clave incorrectos";
-    case  5: return "no autorizado (allow-all?)";
-    default: return "";
-  }
-}
 
 const char* textoWifi(int st) {
   switch (st) {
@@ -108,44 +122,98 @@ void conectarWifi() {
   else                       WiFi.begin(ssid, password);
 }
 
-void gestionarConexionMqtt() {
-  if (WiFi.status() != WL_CONNECTED) return;
+// ---------- Hora ----------
+static bool horaSincronizada() { return time(nullptr) >= EPOCH_MINIMO; }
 
-  if (client.connected()) { client.loop(); return; }
+// Epoch en ms (0 si el reloj no esta sincronizado)
+static uint64_t horaMs() {
+  if (!horaSincronizada()) return 0;
+  struct timeval tv;
+  gettimeofday(&tv, nullptr);
+  return (uint64_t)tv.tv_sec * 1000ULL + (uint64_t)(tv.tv_usec / 1000);
+}
 
-  unsigned long ahora = millis();
-  if (ahora - ultimoIntentoMqtt < 5000) return;
-  ultimoIntentoMqtt = ahora;
+// ---------- MQTT ----------
+static void eventoMqtt(void*, esp_event_base_t, int32_t id, void* datos) {
+  esp_mqtt_event_handle_t e = (esp_mqtt_event_handle_t)datos;
+  switch ((esp_mqtt_event_id_t)id) {
+    case MQTT_EVENT_CONNECTED:    mqttConectado = true; break;
+    case MQTT_EVENT_DISCONNECTED: mqttConectado = false; break;
+    case MQTT_EVENT_PUBLISHED:    mqttUltimoAck = e->msg_id; break;   // PUBACK de un QoS 1
+    case MQTT_EVENT_ERROR:        mqttErrores++; break;
+    default: break;
+  }
+}
 
-  // 1) ¿El ESP32 esta en la misma red que el broker?
-  IPAddress ipBroker;
-  ipBroker.fromString(mqtt_server);
-  uint32_t mask = (uint32_t)WiFi.subnetMask();
-  bool mismaRed = ((uint32_t)WiFi.localIP() & mask) == ((uint32_t)ipBroker & mask);
-  registrarEvento("ESP32 " + WiFi.localIP().toString() + (mismaRed ? " (misma red)" : " (OTRA RED!)"));
+// Arranca NTP y el cliente MQTT la primera vez que hay Wi-Fi. esp-mqtt se
+// reconecta solo (cada 5 s) si se cae el broker o el Wi-Fi.
+static void iniciarRed() {
+  if (mqtt) return;
+  configTime(0, 0, NTP_1, NTP_2);
+  registrarEvento(String("NTP: sincronizando con ") + NTP_1);
 
-  // 2) Prueba TCP pura al puerto del broker (sin MQTT)
-  WiFiClient prueba;
-  if (!prueba.connect(ipBroker, mqtt_port, 3000)) {
-    registrarEvento("ERR: no llega a " + String(mqtt_server) + ":" + String(mqtt_port));
-    registrarEvento("-> firewall de la PC, IP o broker apagado");
-    actualizarPanelEstado();
+  snprintf(mqttUri, sizeof mqttUri, "mqtt://%s:%d", mqtt_server, mqtt_port);
+  esp_mqtt_client_config_t cfg = {};
+  cfg.broker.address.uri = mqttUri;
+  cfg.credentials.client_id = DEVICE_ID;
+  cfg.session.keepalive = 30;
+  cfg.network.reconnect_timeout_ms = 5000;
+  mqtt = esp_mqtt_client_init(&cfg);
+  if (!mqtt) { registrarEvento("ERR: no se pudo crear el cliente MQTT"); return; }
+  esp_mqtt_client_register_event(mqtt, MQTT_EVENT_ANY, eventoMqtt, nullptr);
+  esp_mqtt_client_start(mqtt);
+  registrarEvento(String("MQTT: conectando a ") + mqttUri);
+}
+
+// Publica un mensaje del contrato. QoS 1 se encola en el outbox de esp-mqtt:
+// si no hay conexion se manda al reconectar (sin retain).
+static void publicar(const char* topico, const char* json, int qos) {
+  if (!mqtt) { registrarEvento(String("ERR: sin MQTT para ") + topico); return; }
+  int id;
+  if (qos > 0) {
+    id = esp_mqtt_client_enqueue(mqtt, topico, json, 0, qos, contrato::RETAIN, true);
+  } else {
+    if (!mqttConectado) { registrarEvento(String("ERR: sin conexion, no se envio ") + topico); return; }
+    id = esp_mqtt_client_publish(mqtt, topico, json, 0, qos, contrato::RETAIN);
+  }
+  if (id < 0) {
+    registrarEvento(String("ERR: fallo al publicar en ") + topico + (id == -2 ? " (outbox lleno)" : ""));
     return;
   }
-  prueba.stop();
-  registrarEvento("OK: puerto " + String(mqtt_port) + " abierto");
+  registrarEvento(String("TX q") + qos + ": " + topico + " " + json);
+  if (strcmp(topico, contrato::TOPICO_ALERTAS) == 0 && strstr(json, "\"sos\"")) idUltimoSos = id;
+}
 
-  // 3) Ahora si, MQTT
-  String clientId = "Dinopad-ESP32-" + String(random(0xffff), HEX);
-  registrarEvento("Conectando a HiveMQ...");
-  if (client.connect(clientId.c_str())) {
-    registrarEvento("OK: Conectado a broker HiveMQ");
-    publicarDato("dinopad/estado", "{\"device\":\"Dinopad\",\"status\":\"ONLINE\"}");
-  } else {
-    int rc = client.state();
-    registrarEvento("ERR: rc=" + String(rc) + " " + textoRc(rc));
+// Cambios de conexion, PUBACK del SOS, NTP y estado periodico (desde loop)
+static void gestionarRed() {
+  if (WiFi.status() == WL_CONNECTED) iniciarRed();
+
+  static int ackVisto = -1;
+  int ack = mqttUltimoAck;
+  if (ack != ackVisto) {
+    ackVisto = ack;
+    if (ack == idUltimoSos) registrarEvento("OK: el broker confirmo el SOS (PUBACK)");
   }
-  actualizarPanelEstado();
+
+  static bool avisoNtp = false;
+  if (!avisoNtp && horaSincronizada()) {
+    avisoNtp = true;
+    registrarEvento("OK: hora NTP sincronizada");
+  }
+
+  static uint32_t ultimoEstado = 0;
+  static bool avisoBateria = false;
+  if (mqttConectado && horaSincronizada() && millis() - ultimoEstado >= ESTADO_CADA_MS) {
+    ultimoEstado = millis();
+    char json[200];
+    size_t n = contrato::estado(json, sizeof json, DEVICE_ID, CREW_ID, "online", leerBateriaPct(),
+                                (int)WiFi.RSSI(), horaMs());
+    if (n) publicar(contrato::TOPICO_ESTADO, json, contrato::QOS_ESTADO);
+    else if (!avisoBateria) {
+      avisoBateria = true;
+      registrarEvento("estado no publicado: sin medicion de bateria (el contrato exige batteryPct)");
+    }
+  }
 }
 
 void redibujarConsola() {
@@ -236,7 +304,7 @@ void dibujarInterfazBase() {
 
   // Leyenda de botones junto a su etiqueta (32 caracteres = 192 px, hasta x=272)
   tft.setTextColor(COL_BLANCO, COL_FONDO);
-  tft.setCursor(X_VALOR, 98); tft.print("[NEG]Ping [BLA]Sensores [ROJ]SOS");
+  tft.setCursor(X_VALOR, 98); tft.print("[NEG]Ping [BLA]Vitales DEMO [ROJ]SOS");
 
   // Marco de la consola inferior (hasta el borde de abajo)
   tft.drawRect(2, Y_CONSOLA, ANCHO - 4, ALTO - Y_CONSOLA, COL_VERDE);
@@ -248,8 +316,8 @@ void dibujarInterfazBase() {
 
 void actualizarPanelEstado(bool forzar) {
   int estadoWifi = WiFi.status();
-  bool estadoMqtt = client.connected();
-  int rcActual = client.state();
+  int estadoMqtt = mqttConectado ? 1 : 0;
+  int ntp = horaSincronizada() ? 1 : 0;
 
   // Actualizar IP / Estado Wi-Fi solo si cambió
   if (forzar || estadoWifi != ultimoEstadoWifi) {
@@ -269,33 +337,19 @@ void actualizarPanelEstado(bool forzar) {
     ultimoEstadoWifi = estadoWifi;
   }
 
-  // Actualizar Estado MQTT solo si cambió
-  if (forzar || estadoMqtt != ultimoEstadoMqtt || rcActual != ultimoRcMqtt) {
+  // Actualizar Estado MQTT y NTP solo si cambiaron
+  if (forzar || estadoMqtt != ultimoEstadoMqtt || ntp != ultimoNtp) {
+    if (ultimoEstadoMqtt != -1 && estadoMqtt != ultimoEstadoMqtt)
+      registrarEvento(estadoMqtt ? "OK: MQTT conectado" : "ERR: MQTT desconectado (reintentando)");
     tft.fillRect(X_VALOR, 80, ANCHO_VALOR, 12, COL_FONDO);
     tft.setTextSize(1);
     tft.setCursor(X_VALOR, 82);
-    if (estadoMqtt) {
-      tft.setTextColor(COL_VERDE, COL_FONDO);
-      tft.print("CONECTADO (Activo)");
-    } else {
-      tft.setTextColor(COL_ROJO, COL_FONDO);
-      tft.print("DESCONECTADO (rc=" + String(rcActual) + ")");
-    }
+    tft.setTextColor(estadoMqtt ? COL_VERDE : COL_ROJO, COL_FONDO);
+    tft.print(estadoMqtt ? "CONECTADO" : "DESCONECTADO");
+    tft.setTextColor(ntp ? COL_VERDE : COL_AMARILLO, COL_FONDO);
+    tft.print(ntp ? "  | NTP OK" : "  | sin hora NTP");
     ultimoEstadoMqtt = estadoMqtt;
-    ultimoRcMqtt = rcActual;
-  }
-}
-
-void publicarDato(const char* topico, const String& payload) {
-  if (client.connected()) {
-    bool enviado = client.publish(topico, payload.c_str());
-    if (enviado) {
-      registrarEvento("TX: " + String(topico) + " -> " + payload);
-    } else {
-      registrarEvento("ERR: Fallo al publicar en " + String(topico));
-    }
-  } else {
-    registrarEvento("ERR: Sin MQTT para enviar " + String(topico));
+    ultimoNtp = ntp;
   }
 }
 
@@ -309,20 +363,37 @@ void revisarBotones() {
   bool blanco = !digitalRead(PIN_BTN_BLANCO);
   bool rojo   = !digitalRead(PIN_BTN_ROJO);
 
+  char json[200];
+  // NEGRO: ping de enlace (QoS 1). Sin NTP se manda igual con timestamp 0.
   if (negro && !prevNegro) {
     tDebounce = millis();
-    publicarDato("dinopad/estado", "{\"evento\":\"PING\",\"uptime_s\":" + String(millis() / 1000) + "}");
+    if (contrato::alerta(json, sizeof json, CREW_ID, "ping", horaMs()))
+      publicar(contrato::TOPICO_ALERTAS, json, contrato::QOS_ALERTAS);
   }
+  // BLANCO: BPM y SpO2 SIMULADOS (source "simulated") hasta tener el MAX30102.
+  // Sin hora NTP no se mandan: el contrato pide la hora de la medicion.
   if (blanco && !prevBlanco) {
     tDebounce = millis();
-    int bpmSim = random(72, 96);
-    int spo2Sim = random(96, 100);
-    String json = "{\"bpm\":" + String(bpmSim) + ",\"spo2\":" + String(spo2Sim) + ",\"modo\":\"DEMO\"}";
-    publicarDato("dinopad/sensores", json);
+    uint64_t ts = horaMs();
+    if (!ts) {
+      registrarEvento("ERR: sin hora NTP, lecturas no enviadas");
+    } else {
+      if (contrato::lecturaVital(json, sizeof json, CREW_ID, "hr", true, (int)random(72, 96), "lpm", ts,
+                                 contrato::SOURCE_SIMULATED, contrato::QUALITY_OK))
+        publicar(contrato::TOPICO_VITALS, json, contrato::QOS_VITALS);
+      if (contrato::lecturaVital(json, sizeof json, CREW_ID, "spo2", true, (int)random(96, 100), "%", ts,
+                                 contrato::SOURCE_SIMULATED, contrato::QUALITY_OK))
+        publicar(contrato::TOPICO_VITALS, json, contrato::QOS_VITALS);
+    }
   }
+  // ROJO: SOS (QoS 1, sin retain). Nunca se descarta: sin NTP va con timestamp 0
+  // y, si no hay conexion, queda en el outbox hasta reconectar.
   if (rojo && !prevRojo) {
     tDebounce = millis();
-    publicarDato("dinopad/alertas", "{\"alerta\":\"SOS\",\"prioridad\":\"ALTA\"}");
+    uint64_t ts = horaMs();
+    if (!ts) registrarEvento("SOS SIN HORA NTP: se envia con timestamp 0");
+    if (contrato::alerta(json, sizeof json, CREW_ID, "sos", ts))
+      publicar(contrato::TOPICO_ALERTAS, json, contrato::QOS_ALERTAS);
   }
 
   prevNegro = negro;
@@ -357,9 +428,7 @@ void setup() {
   conectarWifi();
   registrarEvento("Buscando red WiFi...");
 
-  client.setServer(mqtt_server, mqtt_port);
-  client.setSocketTimeout(5);
-  actualizarPanelEstado(true);
+  actualizarPanelEstado(true);   // NTP y MQTT arrancan en gestionarRed() al haber Wi-Fi
 }
 
 void loop() {
@@ -372,7 +441,7 @@ void loop() {
     conectarWifi();
   }
 
-  gestionarConexionMqtt();
+  gestionarRed();
   revisarBotones();
 
   // Actualizar estado y reloj de actividad cada 500ms

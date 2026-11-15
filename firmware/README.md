@@ -7,7 +7,7 @@ ILI9341 de 2.8" y conexión BLE a un SenseCAP Card Tracker T1000-E con Meshtasti
 |---|---|
 | `ble_send/` | Se conecta por BLE al T1000-E con PIN, lee su configuración y telemetría (Nanopb) y las muestra en la pantalla. Con `ENVIAR_MENSAJE = true` manda **un** mensaje de texto por broadcast. |
 | `ble_scan/` | Escáner BLE: lista los nodos Meshtastic cercanos (sin repetidos) y marca el T1000-E objetivo. |
-| `dinopad/` | Panel de telemetría por Wi-Fi + MQTT, con tres botones (ping, sensores simulados, SOS). |
+| `dinopad/` | Panel por Wi-Fi + MQTT con tres botones (ping, vitales simulados, SOS). Publica según `docs/contrato-datos.md`. |
 | `dinopad_pipboy/` | Menú de 5 pestañas con los 3 botones y datos del T1000-E por BLE (en desarrollo por etapas; ver abajo). Sin Wi-Fi, no envía nada. |
 | `test_ble_minimo/` | Solo `NimBLEDevice::init()` e imprime "BLE OK": para ver si una placa aguanta encender el BLE (brownout). |
 | `test_botones/` | Encuentra a qué GPIO está soldado cada botón (muestra "GPIO n" al presionar). |
@@ -26,7 +26,7 @@ ILI9341 de 2.8" y conexión BLE a un SenseCAP Card Tracker T1000-E con Meshtasti
 | Adafruit GFX Library | 1.13.0 | `ble_send`, `dinopad`, tests |
 | Adafruit ILI9341 | 1.7.0 | `ble_send`, `dinopad`, tests |
 | Adafruit BusIO | 1.17.4 | dependencia de las Adafruit |
-| PubSubClient | 2.8 | `dinopad` |
+| PubSubClient | 2.8 | ya no se usa (`dinopad` usa `esp-mqtt`, incluido en el core, para publicar con QoS 1) |
 
 Instalación (funciona igual en bash y en fish):
 
@@ -162,7 +162,18 @@ es `want_config_id` (configuración local, no sale por radio).
 
 ## `dinopad`: Wi-Fi y broker MQTT
 
-Edita `ssid`, `password` y `mqtt_server` (IP de la PC con el broker) en `dinopad/dinopad.ino`.
+Edita `ssid`, `password` y `mqtt_server` (IP de la PC con el broker) en `dinopad/dinopad.ino`,
+y `CREW_ID` / `DEVICE_ID` (identidad en el contrato). Los mensajes siguen
+`docs/contrato-datos.md` (`contrato.h`): NEGRO = ping y ROJO = SOS en `dinopad/alertas`
+(QoS 1, sin retain), BLANCO = `hr` y `spo2` **simulados** en `dinopad/vitals`. La hora
+sale de NTP (necesita internet); sin hora, las lecturas no se mandan y el SOS va con
+`timestamp: 0`. `dinopad/estado` no se publica hasta que haya medición de batería.
+
+Validar los mensajes contra `backend/models.py` (g++, python3 e internet para pydantic):
+
+```sh
+firmware/dinopad/test/verificar_contrato.sh   # debe terminar con "TODO OK"
+```
 Broker Mosquitto en la PC:
 
 ```sh
