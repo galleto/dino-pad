@@ -2,6 +2,7 @@
 // la banda del rango normal y la aguja en el valor, trazo reciente y origen del dato.
 import { getRanges, getStatus, STATUS_LABEL } from '../services/health';
 import Origen from './Origen';
+import { lineaSuave } from './trazos';
 
 function MiniChart({ readings = [] }) {
   const values = readings.filter((reading) => reading?.quality !== 'no_signal' && reading?.value != null && Number.isFinite(Number(reading.value))).slice(-18).map((reading) => Number(reading.value));
@@ -9,8 +10,8 @@ function MiniChart({ readings = [] }) {
   const min = Math.min(...values);
   const max = Math.max(...values);
   const spread = max - min || 1;
-  const points = values.map((value, index) => `${(index / (values.length - 1)) * 100},${27 - ((value - min) / spread) * 22}`).join(' ');
-  return <svg className="mini-chart" viewBox="0 0 100 30" preserveAspectRatio="none" role="img" aria-label="Gráfica miniatura de las últimas lecturas"><polyline points={points} fill="none" strokeWidth="1.5" vectorEffect="non-scaling-stroke" /></svg>;
+  const points = lineaSuave(values.map((value, index) => [(index / (values.length - 1)) * 100, 27 - ((value - min) / spread) * 22]), 0.35);
+  return <svg className="mini-chart" viewBox="0 0 100 30" preserveAspectRatio="none" role="img" aria-label="Gráfica miniatura de las últimas lecturas"><path d={points} fill="none" strokeWidth="1.5" vectorEffect="non-scaling-stroke" /></svg>;
 }
 
 // Regla graduada: zona de atención (tenue), rango normal (banda) y aguja en el valor.

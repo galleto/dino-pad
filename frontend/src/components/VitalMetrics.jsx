@@ -1,11 +1,12 @@
 import { lazy, Suspense, useCallback, useState } from 'react';
-import { getOverallStatus, STATUS_LABEL } from '../services/health';
+import { getOverallStatus, getStatus, STATUS_LABEL } from '../services/health';
 import Origen from './Origen';
 import VitalCard from './VitalCard';
 import HealthAlerts from './HealthAlerts';
 import CrewSelector from './CrewSelector';
 import FiguraHumana from './FiguraHumana';
 import Dossier from './Dossier';
+import TrazoEcg from './TrazoEcg';
 import { useZona } from './seleccion';
 import { ZONA_INFO } from './zonasCuerpo';
 
@@ -52,6 +53,7 @@ export default function VitalMetrics({ data, onSelectIndicator }) {
             ? <FiguraHumana crew={astronaut} indicators={indicators} latest={current} selected={selected} onSelect={elegir} />
             : <Suspense fallback={<div className="viewer-fallback">Preparando visor holográfico…</div>}><BodyViewer3D crew={astronaut} indicators={indicators} latest={current} selected={selected} onSelect={elegir} /></Suspense>}
           <p className="figura-pie" role="status">{seleccionado ? <><strong>{seleccionado.name}.</strong> {seleccionado.what}</> : ZONA_INFO[selected] ? <><strong>{ZONA_INFO[selected].titulo}.</strong> {ZONA_INFO[selected].funcion}</> : 'Selecciona un punto: toca una zona del cuerpo o un indicador.'}</p>
+          <div className="ecg-fila"><TrazoEcg bpm={fc?.quality === 'no_signal' ? 0 : fc?.value} status={fc && indicators.hr ? getStatus(indicators.hr, astronaut, fc) : 'nodata'} /><span>Trazo ilustrativo al ritmo de la FC; no es un electrocardiograma <Origen tipo="demo" compact /></span></div>
           <p className="figura-leyenda"><span>● normal</span><span>▲ atención</span><span>■ crítico</span><span>○ sin señal</span><span>◇ sin sensor</span>{fc?.value != null && fc.quality !== 'no_signal' && <span className="figura-latido">El corazón late a {fc.value} lpm <Origen source={fc.source} compact /></span>}</p>
         </section>
         <aside className="monitor-aside">

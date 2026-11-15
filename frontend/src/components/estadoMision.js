@@ -2,7 +2,7 @@
 // modo tormenta solar, entorno de misión, sonido y modo presentación.
 import { useSyncExternalStore } from 'react';
 
-function crearStore(inicial, clave) {
+export function crearStore(inicial, clave) {
   let valor = inicial;
   if (clave) {
     try { const g = JSON.parse(localStorage.getItem(clave) || 'null'); if (g !== null) valor = g; } catch { /* sin almacenamiento */ }

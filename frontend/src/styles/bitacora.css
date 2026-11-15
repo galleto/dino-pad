@@ -1,0 +1,52 @@
+/* bitacora.css · Mi bitácora: anillo de preparación como protagonista */
+.bitacora { display: grid; gap: 22px; }
+.bit-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr) 340px; align-items: start; gap: 44px; }
+.bit-anillo { display: grid; justify-items: center; gap: 6px; text-align: center; }
+.anillo { width: 100%; max-width: 280px; font-family: var(--mono); }
+.anillo-marca { stroke: var(--line-bright); stroke-width: 1; }
+.anillo-fondo { fill: none; stroke: var(--line); stroke-width: 12; }
+.anillo-valor { fill: none; stroke: var(--green); stroke-width: 12; filter: drop-shadow(0 0 8px rgba(164, 255, 112, 0.6)); transition: stroke-dasharray .7s var(--ease); }
+.anillo-num { fill: var(--green); font-size: 52px; font-weight: 500; letter-spacing: -.03em; }
+.anillo-pct { font-size: 20px; }
+.anillo-sub { fill: var(--muted); font-size: 11px; }
+.bit-anillo h3 { font-size: var(--t-lg); font-weight: 600; }
+.bit-persona { color: var(--muted); font-size: var(--t-sm); }
+.bit-racha { display: flex; align-items: baseline; gap: 10px; margin-top: 10px; }
+.bit-racha strong { color: var(--green); font-size: 40px; font-weight: 500; line-height: 1; text-shadow: var(--glow); }
+.bit-racha span { color: var(--muted); font-size: var(--t-sm); text-align: left; }
+.bit-semana { display: flex; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
+.bit-semana li { display: grid; justify-items: center; gap: 4px; color: var(--muted); font-size: 10px; }
+.bit-semana i { display: block; width: 22px; height: 30px; border: 1px solid var(--line-bright); background: linear-gradient(to top, var(--green-dim) calc(var(--lleno) * 100%), transparent 0); }
+.bit-semana .is-completo i { border-color: var(--green); background: var(--green); box-shadow: 0 0 10px rgba(164, 255, 112, 0.5); }
+.bit-registro { display: grid; gap: 4px; }
+.bit-campo { display: grid; gap: 7px; padding: 16px 0 14px 14px; border-bottom: 1px solid var(--line); border-left: 2px solid var(--st); }
+.bit-campo label { font-size: var(--t-lg); font-weight: 600; }
+.bit-entrada { display: flex; flex-wrap: wrap; gap: 8px; }
+.bit-entrada input { width: 130px; font-size: var(--t-xl); color: var(--green); }
+.bit-ultima { color: var(--muted); font-size: var(--t-sm); }
+.bit-ultima span { color: var(--st); }
+.bit-ultima b { font-weight: 600; }
+.bit-consejo { padding: 6px 10px; border: 1px solid var(--st); font-size: var(--t-sm); }
+.serie { display: block; width: 100%; max-width: 440px; height: auto; }
+.serie-linea { fill: none; stroke: var(--green); stroke-width: 1.8; filter: drop-shadow(0 0 3px rgba(164, 255, 112, 0.6)); }
+.serie-punto { fill: var(--bg); stroke: var(--green); stroke-width: 1.4; }
+.serie-vacia { color: #56665a; font-size: var(--t-xs); }
+.bit-revision { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding-top: 14px; }
+.bit-revision a { color: var(--green); font-size: var(--t-sm); }
+.bit-aviso { min-height: 1.5em; color: var(--green); font-size: var(--t-sm); }
+.bit-lado { display: grid; gap: 26px; }
+.bit-recordatorios, .bit-insignias { display: grid; margin: 0; padding: 0; list-style: none; }
+.bit-recordatorios li, .bit-insignias li { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--muted); }
+.bit-recordatorios strong, .bit-insignias strong { display: block; font-size: var(--t-md); font-weight: 500; }
+.bit-recordatorios small, .bit-insignias small { font-size: var(--t-xs); }
+.bit-recordatorios .is-pendiente { color: var(--text); }
+.bit-recordatorios .is-pendiente .bit-marca { color: var(--green); animation: latido-punto 1.6s ease-in-out infinite; }
+.bit-insignias i { display: block; width: 16px; height: 16px; border: 1px dashed var(--line-bright); transform: rotate(45deg) scale(.8); }
+.bit-insignias .is-lograda { color: var(--text); }
+.bit-insignias .is-lograda i { border: 1px solid var(--green); background: var(--green); box-shadow: 0 0 10px rgba(164, 255, 112, 0.6); }
+.bit-nota { padding-top: 6px; color: var(--muted); font-size: var(--t-xs); }
+.bit-borrar { justify-self: start; }
+.nav-aviso { display: inline-grid; min-width: 16px; height: 16px; place-items: center; padding: 0 4px; margin-left: 2px; color: #081009; font-size: 10px; font-weight: 700; background: var(--green); }
+.nav-link.active .nav-aviso { color: var(--green); background: #081009; }
+@media (max-width: 1350px) { .bit-layout { grid-template-columns: 260px minmax(0, 1fr); gap: 32px; } .bit-lado { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .bit-layout, .bit-lado { grid-template-columns: minmax(0, 1fr); } }

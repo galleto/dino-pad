@@ -388,3 +388,6 @@
 @media (max-width: 720px) { .fuentes-lista li { grid-template-columns: minmax(0, 1fr); gap: 6px; } .rueda-detalle h2 { font-size: 26px; } }
 .rueda-sector:focus-visible, .fig-zona:focus-visible { outline: none; }
 .rueda-nombre { font-size: 14px; }
+.ecg-fila { display: grid; gap: 2px; }
+.ecg-fila > span { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--muted); font-size: var(--t-xs); }
+.trazo-ecg { display: block; width: 100%; height: 54px; color: var(--st); border-block: 1px solid var(--line); background: repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px 22px), repeating-linear-gradient(0deg, #23332a66 0 1px, transparent 1px 18px); }

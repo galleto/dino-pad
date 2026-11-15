@@ -6,6 +6,8 @@ import Starfield from './components/Starfield';
 import DinoPadPage from './components/DinoPadPage';
 import Tormenta from './components/Tormenta';
 import BarraMision from './components/BarraMision';
+import BitacoraPage from './components/BitacoraPage';
+import { recordatorios, registroStore } from './components/registro';
 import { tormentaStore, useStore } from './components/estadoMision';
 import { ClaveOrigen } from './components/Origen';
 import './styles/tokens.css';
@@ -23,6 +25,7 @@ const NAV_ITEMS = [
   ['emergencia', '07', 'Emergencia'],
   ['laboratorio', '08', 'Laboratorio'],
   ['dinopad', '09', 'DINO PAD'],
+  ['bitacora', '10', 'Bitácora'],
 ];
 
 const PAGE_TITLES = Object.fromEntries(NAV_ITEMS.map(([id, , label]) => [id, label]));
@@ -46,6 +49,8 @@ function App() {
   const { crew, activeCrewId, setActiveCrewId } = useVitals();
   const { connectionState, alerts, acknowledgeSos, acknowledgedSos, synchronized, cacheWarning, lastCachedAt } = useConnection();
   const [tormenta] = useStore(tormentaStore);
+  const [registro] = useStore(registroStore);
+  const pendientes = recordatorios(registro[activeCrewId] || []).filter((r) => r.pendiente).length;
   const activeCrew = crew[activeCrewId] || Object.values(crew)[0];
   const connectionLabel = { live: 'EN VIVO', simulator: 'SIMULADOR LOCAL', offline: 'SIN ENLACE', checking: 'CONECTANDO' }[connectionState];
   const sosAlert = alerts.find((alert) => /sos/i.test(`${alert.title || ''} ${alert.action || ''}`) && alert.id !== acknowledgedSos);
@@ -108,7 +113,7 @@ function App() {
           <nav className="nav-list" aria-label="Navegación principal">
             {NAV_ITEMS.map(([id, number, label]) => (
               <a key={id} href={`#/${id}`} className={`nav-link${route === id ? ' active' : ''}`} aria-label={label} aria-current={route === id ? 'page' : undefined}>
-                <span className="nav-number">{number}</span><span className="nav-label">{label}</span>
+                <span className="nav-number">{number}</span><span className="nav-label">{label}</span>{id === 'bitacora' && pendientes > 0 && <span className="nav-aviso" aria-label={`${pendientes} recordatorios pendientes`}>{pendientes}</span>}
               </a>
             ))}
           </nav>
@@ -121,7 +126,7 @@ function App() {
         {cacheWarning && <div className="cache-warning" role="status">{cacheWarning}</div>}
         <main className="page-content">
           {connectionState === 'offline' && <div className="data-cached cache-banner" role="status">SIN ENLACE · Datos en caché {lastCachedAt ? `guardados ${new Date(lastCachedAt).toLocaleString('es')}` : 'sin historial local guardado'}.</div>}
-          <div className="page-enter" key={route}>{route === 'monitoreo' ? <MonitorPage /> : route === 'alertas' ? <AlertsPage /> : route === 'historial' ? <HistoryPage /> : route === 'tendencias' ? <TrendsPage /> : route === 'tripulacion' ? <CrewPage /> : route === 'riesgos' ? <RisksPage /> : route === 'emergencia' ? <EmergencyPage /> : route === 'laboratorio' ? <LabPage /> : route === 'dinopad' ? <DinoPadPage /> : <EmptyPage title={PAGE_TITLES[route]} description="Módulo de misión." />}</div>
+          <div className="page-enter" key={route}>{route === 'monitoreo' ? <MonitorPage /> : route === 'alertas' ? <AlertsPage /> : route === 'historial' ? <HistoryPage /> : route === 'tendencias' ? <TrendsPage /> : route === 'tripulacion' ? <CrewPage /> : route === 'riesgos' ? <RisksPage /> : route === 'emergencia' ? <EmergencyPage /> : route === 'laboratorio' ? <LabPage /> : route === 'dinopad' ? <DinoPadPage /> : route === 'bitacora' ? <BitacoraPage /> : <EmptyPage title={PAGE_TITLES[route]} description="Módulo de misión." />}</div>
         </main>
         <BarraMision />
         <footer className="app-footer"><span>DINOPAD · NASA SPACE APPS 2026</span><span className="sidebar-bottom"><span className="status-dot" /> SISTEMA OPERATIVO <small>CONTROL DE MISIÓN · 2026</small></span><span>Prototipo de monitoreo · No es un dispositivo médico</span></footer>

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { HAZARDS } from '../data/crewData';
 import { getRanges, getStatus, STATUS_LABEL } from '../services/health';
 import Origen from './Origen';
+import { lineaSuave } from './trazos';
 import { ENTORNOS, retrasoDe, textoRetraso } from './entornos';
 import { entornoStore, useStore } from './estadoMision';
 import { CUANDO_AVISAR, URL_PELIGROS, URL_RIESGOS, ZONA_INFO } from './zonasCuerpo';
@@ -18,14 +19,14 @@ function Grafica({ readings, ranges, unit }) {
   const pad = (high - low) * 0.12 || 1;
   const y = (v) => 84 - ((v - (low - pad)) / (high - low + pad * 2)) * 78;
   const x = (i) => 34 + (i / (values.length - 1)) * 262;
-  const pts = values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const pts = lineaSuave(values.map((v, i) => [x(i), y(v)]));
   return (
     <svg className="dossier-grafica" viewBox="0 0 300 92" role="img" aria-label={`Últimas ${values.length} lecturas; la banda marca el rango normal de ${ok0} a ${ok1} ${unit}`}>
       <rect className="dg-banda" x="34" y={y(ok1)} width="262" height={Math.max(y(ok0) - y(ok1), 1)} />
       <path className="dg-limite" d={`M34 ${y(ok1)}H296M34 ${y(ok0)}H296`} />
       <text className="dg-eje" x="28" y={y(ok1) + 3} textAnchor="end">{ok1}</text>
       <text className="dg-eje" x="28" y={y(ok0) + 3} textAnchor="end">{ok0}</text>
-      <polyline className="dg-linea" points={pts} />
+      <path className="dg-linea" d={pts} />
       <circle className="dg-punto" cx={x(values.length - 1)} cy={y(values.at(-1))} r="3" />
     </svg>
   );
