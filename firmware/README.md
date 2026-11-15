@@ -233,6 +233,15 @@ USB CP2102 (aparece como `usb-Silicon_Labs_CP2102_..._0001`, igual en todas:
 | `82:a4` | `48:af:f3:67:82:a4` | Botones soldados (NEGRO=13, BLANCO=26, ROJO=14) + pantalla | Con pantalla y botones: brownout en bucle dentro de `NimBLEDevice::init()` (ble_send, dinopad_pipboy, incluso con la flash borrada y el código de las 17:29). Desde el 18:46 dejó de enumerar por USB a ratos (`error -71`). **Sola, sin pantalla ni botones:** `test_ble_minimo` imprime "BLE OK" y 0 brownouts en 40 s. |
 | `77:e4` | `c8:8a:7b:a9:77:e4` | Pantalla (cristal 40 MHz) | `ble_send` en modo lectura con lo que tiene conectado: 30 brownouts en 60 s, siempre ~0.4 s después de iniciar la pantalla (al iniciar el BLE); nunca llega a `[1/8]`. El USB **no** se desconecta durante los brownouts (sin mensajes del kernel). **`test_ble_minimo` con la pantalla conectada pero sin inicializarla:** 18 brownouts en 40 s, ~20 ms después de empezar `NimBLEDevice::init()`; nunca imprime "BLE OK". |
 
+**15/11/2026 01:01 (noche del 14 al 15), `82:a4` con pantalla y sin botones (según el
+usuario), alimentada por USB:** `dinopad_pipboy` de `pines-botones` (`ENVIAR_MENSAJE = false`,
+`DEMO_AUTOMATICO = true`, brownout activado, sin Wi-Fi) corrió **60 s sin brownouts** (un solo
+`POWERON_RESET`, el provocado por RTS para capturar desde el arranque) y llegó a **CONECTADO**
+a los 18.7 s (140 paquetes de configuración). El menú siguió respondiendo mientras el BLE
+leía la configuración (eventos de la demo puntuales al milisegundo). **No sabemos qué cambió**
+desde las pruebas fallidas del 14/11 en esta misma placa: no se cambió el código del
+brownout ni la alimentación a propósito. Pendiente: la misma prueba con baterías.
+
 **Cambio de puerto USB de la PC (`77:e4`, pantalla conectada):** de `usb 1-3`
 (donde estuvo todo el día) a `usb 1-1` (el puerto que usaba el mouse). Se detectó
 como CP2102 en `/dev/ttyUSB0` sin errores `-71` ni ciclos de energía, y esptool
