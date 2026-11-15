@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useVitals } from './hooks/useVitals';
 import { useConnection } from './hooks/useConnection';
 import { AlertsPage, CrewPage, EmergencyPage, EmptyPage, HistoryPage, LabPage, MonitorPage, RisksPage, TrendsPage } from './components/Pages';
+import MapsPage from './components/MapsPage';
 import './styles/tokens.css';
 import './styles/layout.css';
 import './styles/components.css';
@@ -16,6 +17,7 @@ const NAV_ITEMS = [
   ['riesgos', '06', 'Riesgos NASA'],
   ['emergencia', '07', 'Emergencia'],
   ['laboratorio', '08', 'Laboratorio'],
+  ['mapas', '09', 'Mapas'],
 ];
 
 const PAGE_TITLES = Object.fromEntries(NAV_ITEMS.map(([id, , label]) => [id, label]));
@@ -109,7 +111,7 @@ function App() {
         {cacheWarning && <div className="cache-warning" role="status">{cacheWarning}</div>}
         <main className="page-content">
           {connectionState === 'offline' && <div className="data-cached cache-banner" role="status">SIN ENLACE · Datos en caché {lastCachedAt ? `guardados ${new Date(lastCachedAt).toLocaleString('es')}` : 'sin historial local guardado'}.</div>}
-          {route === 'monitoreo' ? <MonitorPage /> : route === 'alertas' ? <AlertsPage /> : route === 'historial' ? <HistoryPage /> : route === 'tendencias' ? <TrendsPage /> : route === 'tripulacion' ? <CrewPage /> : route === 'riesgos' ? <RisksPage /> : route === 'emergencia' ? <EmergencyPage /> : route === 'laboratorio' ? <LabPage /> : <EmptyPage title={PAGE_TITLES[route]} description="Módulo de misión." />}
+          {route === 'monitoreo' ? <MonitorPage /> : route === 'alertas' ? <AlertsPage /> : route === 'historial' ? <HistoryPage /> : route === 'tendencias' ? <TrendsPage /> : route === 'tripulacion' ? <CrewPage /> : route === 'riesgos' ? <RisksPage /> : route === 'emergencia' ? <EmergencyPage /> : route === 'laboratorio' ? <LabPage /> : route === 'mapas' ? <MapsPage /> : <EmptyPage title={PAGE_TITLES[route]} description="Módulo de misión." />}
         </main>
         <footer className="app-footer"><span>DINOPAD · NASA SPACE APPS 2026</span><span>Prototipo de monitoreo · No es un dispositivo médico</span></footer>
       </div>

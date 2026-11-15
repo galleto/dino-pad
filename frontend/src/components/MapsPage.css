@@ -1,0 +1,8 @@
+.maps-panel { display: grid; gap: 14px; padding: 16px; }
+.maps-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.maps-view { position: relative; min-height: 340px; overflow: hidden; border: 1px solid var(--line); background: var(--bg-raised); }
+.maps-map { width: 100%; height: min(65vh, 640px); min-height: 340px; }
+.maps-message { position: absolute; z-index: 500; top: 12px; left: 12px; margin: 0; padding: 8px 10px; border: 1px solid var(--line-bright); border-radius: 6px; background: var(--bg-raised); color: var(--muted); font-size: 12px; }
+.maps-error { color: var(--crit); }
+.maps-attribution { color: var(--muted); font-size: 11px; }
+@media (max-width: 720px) { .maps-view, .maps-map { min-height: 280px; } }
