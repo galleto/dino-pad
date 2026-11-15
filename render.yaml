@@ -26,8 +26,8 @@ services:
         sync: false
       - key: MQTT_PASSWORD
         sync: false
-      - key: CORS_ORIGINS         # la página publicada, p. ej. https://dinopad.pages.dev
-        sync: false
+      - key: CORS_ORIGINS         # la página publicada (y el dominio propio, cuando exista)
+        value: https://dino-pad.pages.dev,https://dinopad.uncangrejocontrolamisfinanzas.tech
       - key: GEMINI_APIKEY        # opcional: explicaciones de las alertas
         sync: false
       - key: DATABASE_URL         # opcional: sin ella guarda en memoria
