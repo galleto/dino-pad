@@ -5,18 +5,20 @@ import paho.mqtt.client as mqtt
 from pydantic import ValidationError
 
 from backend.config import settings
-from backend.models import VitalReading, AlertMessage, DeviceStatus
+from backend.models import VitalReading, AlertMessage, DeviceStatus, DeviceUi
 
 logger = logging.getLogger("dinopad.mqtt")
 
 TOPIC_VITALS = "dinopad/vitals"
 TOPIC_ALERTS = "dinopad/alertas"
 TOPIC_STATUS = "dinopad/estado"
+TOPIC_UI = "dinopad/ui"
 
 # Tipo de handlers para registrar observadores
 VitalsHandler = Callable[[VitalReading], None]
 AlertsHandler = Callable[[AlertMessage], None]
 StatusHandler = Callable[[DeviceStatus], None]
+UiHandler = Callable[[DeviceUi], None]
 
 
 class DinopadMQTTClient:
@@ -38,6 +40,7 @@ class DinopadMQTTClient:
         self.vitals_handlers: List[VitalsHandler] = []
         self.alerts_handlers: List[AlertsHandler] = []
         self.status_handlers: List[StatusHandler] = []
+        self.ui_handlers: List[UiHandler] = []
 
         self._connected = False
 
@@ -50,6 +53,9 @@ class DinopadMQTTClient:
     def on_status(self, handler: StatusHandler):
         self.status_handlers.append(handler)
 
+    def on_ui(self, handler: UiHandler):
+        self.ui_handlers.append(handler)
+
     def _on_connect(self, client, userdata, flags, rc, properties=None):
         rc_code = getattr(rc, "value", rc)
         if rc_code == 0:
@@ -59,8 +65,9 @@ class DinopadMQTTClient:
                 (TOPIC_VITALS, 0),
                 (TOPIC_ALERTS, 0),
                 (TOPIC_STATUS, 0),
+                (TOPIC_UI, 0),
             ])
-            logger.info("Suscrito a topicos: %s, %s, %s", TOPIC_VITALS, TOPIC_ALERTS, TOPIC_STATUS)
+            logger.info("Suscrito a topicos: %s, %s, %s, %s", TOPIC_VITALS, TOPIC_ALERTS, TOPIC_STATUS, TOPIC_UI)
         else:
             logger.warning("Conexion al broker MQTT rechazada (codigo %s)", rc_code)
 
@@ -114,6 +121,17 @@ class DinopadMQTTClient:
                         logger.error("Error en handler de estado: %s", handler_err)
             except ValidationError as ve:
                 logger.warning("[MQTT INVALID STATUS] Topico %s: %s", topic, ve.errors())
+        elif topic == TOPIC_UI:
+            try:
+                ui = DeviceUi.model_validate(data)
+                logger.debug("[UI] %s | %s %s | %s%s", ui.deviceId, ui.tabName, ui.mode, ui.event, " (demo)" if ui.demo else "")
+                for handler in self.ui_handlers:
+                    try:
+                        handler(ui)
+                    except Exception as handler_err:
+                        logger.error("Error en handler de ui: %s", handler_err)
+            except ValidationError as ve:
+                logger.warning("[MQTT INVALID UI] Topico %s: %s", topic, ve.errors())
         else:
             logger.debug("[MQTT UNHANDLED TOPIC] %s", topic)
 

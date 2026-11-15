@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import sys
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
@@ -26,7 +27,7 @@ from backend.db import (
     get_vitals_history,
     get_alerts,
 )
-from backend.models import VitalReading, AlertMessage, DeviceStatus
+from backend.models import VitalReading, AlertMessage, DeviceStatus, DeviceUi
 from backend.mqtt_client import mqtt_service
 from backend.rules import evaluate_reading, evaluate_alert_message
 from backend.gemini_service import explain_alert_background
@@ -50,6 +51,35 @@ def _dispatch_ai_if_needed(alert_dict: dict):
         asyncio.run_coroutine_threadsafe(explain_alert_background(alert_dict), _main_loop)
 
 
+# El ESP32 no tiene reloj: si todavía no tiene hora por NTP manda timestamp 0.
+# Cualquier marca anterior a 2020 se reemplaza por la hora del servidor.
+_TS_MINIMO_MS = 1_577_836_800_000
+
+
+def _con_hora(msg):
+    if msg.timestamp < _TS_MINIMO_MS:
+        msg.timestamp = int(time.time() * 1000)
+    return msg
+
+
+# Último estado del menú por dispositivo (para que la web se sincronice al conectarse)
+_ultimo_ui: dict = {}
+
+
+def handle_device_status(status: DeviceStatus):
+    """Guarda la telemetría del dispositivo y la emite por /ws/device."""
+    _con_hora(status)
+    save_device_status(status)
+    ws_manager.broadcast_device_threadsafe({"type": "status", **status.model_dump()})
+
+
+def handle_device_ui(ui: DeviceUi):
+    """Guarda el estado del menú del DINO PAD y lo emite por /ws/device (espejo en la web)."""
+    _con_hora(ui)
+    _ultimo_ui[ui.deviceId] = ui.model_dump()
+    ws_manager.broadcast_device_threadsafe(ui.model_dump())
+
+
 def handle_incoming_vital(reading: VitalReading):
     """
     1. Guarda la lectura en TimescaleDB.
@@ -57,6 +87,7 @@ def handle_incoming_vital(reading: VitalReading):
     3. Evalúa reglas deterministas de salud (health.js). Si hay alerta, la guarda,
        la emite por /ws/alerts y programa Gemini en segundo plano.
     """
+    _con_hora(reading)
     save_vital(reading)
     ws_manager.broadcast_vital_threadsafe(reading.model_dump())
 
@@ -73,6 +104,7 @@ def handle_incoming_alert_msg(msg: AlertMessage):
     type 'sos' -> level critical, title SOS, origin button.
     type 'ping' -> level info.
     """
+    _con_hora(msg)
     alert = evaluate_alert_message(msg)
     if alert:
         save_alert(alert)
@@ -99,7 +131,8 @@ async def lifespan(app: FastAPI):
     # Conectar observadores de MQTT
     mqtt_service.on_vitals(handle_incoming_vital)
     mqtt_service.on_alert(handle_incoming_alert_msg)
-    mqtt_service.on_status(save_device_status)
+    mqtt_service.on_status(handle_device_status)
+    mqtt_service.on_ui(handle_device_ui)
 
     # Iniciar cliente MQTT
     mqtt_service.start()
@@ -126,6 +159,9 @@ app.add_middleware(
         "http://127.0.0.1:5173",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://localhost:4173",   # vite preview
+        "http://localhost:4317",
+        *settings.cors_origin_list,   # CORS_ORIGINS: la página publicada
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -144,6 +180,8 @@ def health_check():
         "mqtt_broker": f"{settings.mqtt_host}:{settings.mqtt_port}",
         "ws_vitals_clients": len(ws_manager.vitals_connections),
         "ws_alerts_clients": len(ws_manager.alerts_connections),
+        "ws_device_clients": len(ws_manager.device_connections),
+        "devices": len(get_device_snapshot()["status"]),
     }
 
 
@@ -185,6 +223,17 @@ def api_alerts(
     return get_alerts(crewId, limit)
 
 
+def get_device_snapshot() -> dict:
+    from backend.db import _memory_devices
+    return {"status": list(_memory_devices.values()), "ui": list(_ultimo_ui.values())}
+
+
+@app.get("/api/device/latest", tags=["Dispositivo"])
+def api_device_latest():
+    """Última telemetría y último estado del menú de cada DINO PAD."""
+    return get_device_snapshot()
+
+
 @app.get("/", tags=["Root"])
 def root():
     return {
@@ -205,6 +254,24 @@ async def ws_vitals_endpoint(websocket: WebSocket):
         ws_manager.disconnect_vitals(websocket)
     except Exception:
         ws_manager.disconnect_vitals(websocket)
+
+
+@app.websocket("/ws/device")
+async def ws_device_endpoint(websocket: WebSocket):
+    """Telemetría del tracker ({"type": "status"}) y estado del menú ({"type": "ui"}) del DINO PAD."""
+    await ws_manager.connect_device(websocket)
+    try:
+        snap = get_device_snapshot()
+        for st in snap["status"]:
+            await websocket.send_json({"type": "status", **st})
+        for ui in snap["ui"]:
+            await websocket.send_json(ui)
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        ws_manager.disconnect_device(websocket)
+    except Exception:
+        ws_manager.disconnect_device(websocket)
 
 
 @app.websocket("/ws/alerts")

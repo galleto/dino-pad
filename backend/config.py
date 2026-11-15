@@ -41,6 +41,14 @@ class Settings(BaseSettings):
     # Entorno
     node_env: str = "development"
 
+    # Orígenes extra permitidos por CORS, separados por coma (p. ej. la página publicada:
+    # "https://dinopad.pages.dev,https://dinopad.midominio.tech")
+    cors_origins: str = ""
+
+    @property
+    def cors_origin_list(self) -> list:
+        return [o.strip().rstrip("/") for o in self.cors_origins.split(",") if o.strip()]
+
     @property
     def effective_database_url(self) -> str:
         return self.timescale_service_url or self.database_url
@@ -56,6 +64,7 @@ class Settings(BaseSettings):
             "has_gemini_key": bool(self.gemini_apikey),
             "has_database_url": bool(self.effective_database_url),
             "node_env": self.node_env,
+            "cors_origins": self.cors_origin_list,
         }
 
 

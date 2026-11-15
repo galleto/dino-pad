@@ -10,6 +10,7 @@ class WebSocketManager:
     def __init__(self):
         self.vitals_connections: Set[WebSocket] = set()
         self.alerts_connections: Set[WebSocket] = set()
+        self.device_connections: Set[WebSocket] = set()
         self.loop: asyncio.AbstractEventLoop = None
 
     def set_loop(self, loop: asyncio.AbstractEventLoop):
@@ -32,6 +33,29 @@ class WebSocketManager:
     def disconnect_alerts(self, websocket: WebSocket):
         self.alerts_connections.discard(websocket)
         logger.info("[WS] Cliente desconectado de /ws/alerts (Total: %d)", len(self.alerts_connections))
+
+    async def connect_device(self, websocket: WebSocket):
+        await websocket.accept()
+        self.device_connections.add(websocket)
+        logger.info("[WS] Cliente conectado a /ws/device (Total: %d)", len(self.device_connections))
+
+    def disconnect_device(self, websocket: WebSocket):
+        self.device_connections.discard(websocket)
+        logger.info("[WS] Cliente desconectado de /ws/device (Total: %d)", len(self.device_connections))
+
+    async def _broadcast_device_coro(self, data: dict):
+        for ws in list(self.device_connections):
+            try:
+                await ws.send_json(data)
+            except Exception:
+                self.disconnect_device(ws)
+
+    def broadcast_device_threadsafe(self, data: dict):
+        """Transmite telemetría o estado del menú del DINO PAD ({"type": "status" | "ui", ...})."""
+        if not self.device_connections:
+            return
+        if self.loop and self.loop.is_running():
+            asyncio.run_coroutine_threadsafe(self._broadcast_device_coro(data), self.loop)
 
     async def _broadcast_vitals_coro(self, data: dict):
         for ws in list(self.vitals_connections):

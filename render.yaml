@@ -1,0 +1,34 @@
+# Render Blueprint: backend FastAPI de DINO PAD (plan gratis).
+# Render > New > Blueprint > este repo y rama. Los valores con "sync: false" los pide al crear
+# el servicio (no se guardan en el repo).
+# Plan gratis: se duerme tras 15 min sin visitas HTTP y tarda ~1 min en despertar. Mientras
+# duerme no escucha MQTT: abre la página un par de minutos antes de la demo.
+services:
+  - type: web
+    name: dinopad-backend
+    runtime: python
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: NODE_ENV
+        value: production
+      - key: MQTT_HOST            # HiveMQ Cloud: Cluster > Overview > Host
+        sync: false
+      - key: MQTT_PORT
+        value: "8883"
+      - key: MQTT_TLS
+        value: "true"
+      - key: MQTT_USER            # credencial con permiso de SUSCRIBIRSE (dinopad-backend)
+        sync: false
+      - key: MQTT_PASSWORD
+        sync: false
+      - key: CORS_ORIGINS         # la página publicada, p. ej. https://dinopad.pages.dev
+        sync: false
+      - key: GEMINI_APIKEY        # opcional: explicaciones de las alertas
+        sync: false
+      - key: DATABASE_URL         # opcional: sin ella guarda en memoria
+        sync: false
