@@ -1,16 +1,35 @@
-# React + Vite
+# Dinopad · Centro de control
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Interfaz web para el prototipo de monitoreo de salud de tripulación espacial. Las lecturas que genera el simulador son sintéticas y no deben utilizarse para decisiones médicas.
 
-Currently, two official plugins are available:
+## Desarrollo local
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```powershell
+cd frontend
+npm install
+npm run dev
+```
 
-## React Compiler
+Opcionalmente, copia `.env.example` a `.env.local` y configura:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- `VITE_API_URL`: dirección HTTP del backend (por defecto `http://localhost:8000`).
+- `VITE_WS_URL`: dirección WebSocket del backend (por defecto `ws://localhost:8000`).
 
-## Expanding the ESLint configuration
+## PWA y prueba sin conexión
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Ejecuta `npm run build` y `npm run preview`, abre la URL local del preview al menos una vez y luego activa el modo sin conexión del navegador y recarga. La aplicación conserva su shell y sus recursos estáticos; los datos permanecen sujetos a la caché local existente. El botón de instalación requiere `localhost` o HTTPS.
+
+La app consulta `/health` y `/api/crew`, `/api/vitals/latest`, `/api/vitals/history` y `/api/alerts`. Si el backend no responde a la API, inicia el simulador local; la caché acotada permanece en el navegador y puede demostrarse desde Laboratorio. Los WebSockets se reconectan automáticamente.
+
+## Secciones
+
+Monitoreo, Alertas, Historial, Tendencias, Tripulación, Riesgos NASA, Emergencia y Laboratorio. El visor corporal holográfico se carga bajo demanda y puede rotarse con el mouse.
+
+Los rangos y perfiles usan los datos del proyecto. Las lecturas del modo local se identifican como simuladas. El prototipo no hace diagnósticos; el contenido de Riesgos NASA está marcado para validación con fuentes oficiales. El estado de batería y RSSI queda pendiente de un endpoint de dispositivo: el backend actual no lo expone a la interfaz.
+
+## Verificación
+
+```powershell
+npm run build
+npm run lint
+```
