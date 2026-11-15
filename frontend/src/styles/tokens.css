@@ -1,24 +1,51 @@
+/* ============================================================
+   tokens.css · Paleta espacial azul
+   Regla: el azul es identidad y selección; verde, ámbar y rojo
+   se usan SOLO para estados de salud.
+   ============================================================ */
 :root {
-  font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
-  color: #d8e6d9;
-  background: #080d0a;
+  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  color: #e6eef9;
+  background: #050b16;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   color-scheme: dark;
-  --bg: #080d0a;
-  --bg-raised: #0c140f;
-  --panel: #0e1711;
-  --panel-hi: #111d14;
-  --line: #23332a;
-  --line-bright: #38503d;
-  --text: #d8e6d9;
-  --muted: #84958a;
-  --green: #a4ff70;
-  --green-dim: #5da64a;
-  --amber: #ffc66d;
-  --red: #ff6b63;
-  --blue: #78c9d4;
+
+  /* Fondos */
+  --bg: #050b16;
+  --bg-raised: #08111f;
+  --panel: #0a1424;
+  --panel-hi: #101c32;
+
+  /* Bordes (sutiles) */
+  --line: rgba(90, 169, 255, 0.14);
+  --line-bright: rgba(90, 169, 255, 0.32);
+
+  /* Texto */
+  --text: #e6eef9;
+  --muted: #9aa9bf;
+  --dim: #66758c;
+
+  /* Acento: identidad, selección, botones */
+  --accent: #5aa9ff;
+  --accent-dim: #3e7fc4;
+  --accent-bg: rgba(90, 169, 255, 0.12);
+
+  /* Estados de salud: SOLO para indicar estado */
+  --ok: #5fd3a0;
+  --warn: #f2b84b;
+  --crit: #f26b6b;
+
+  /* Nombres antiguos: se mantienen para que nada se rompa.
+     Reemplazar poco a poco por los de arriba. */
+  --green: var(--ok);
+  --green-dim: #7f9cc0;
+  --amber: var(--warn);
+  --red: var(--crit);
+  --blue: var(--accent);
+
+  /* Tipografía: sans para texto, mono solo para cifras */
   --mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
 }
 
@@ -27,8 +54,8 @@ body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--bg); co
 button, select { font: inherit; }
 button, a, select { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; }
-button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
-::selection { color: #081009; background: var(--green); }
+button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+::selection { color: #04101f; background: var(--accent); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }

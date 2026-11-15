@@ -71,10 +71,10 @@ const POINTS = [
 ];
 
 const STATUS_COLORS = {
-  ok: '#a4ff70',
-  warn: '#ffc66d',
-  crit: '#ff6b63',
-  nodata: '#84958a',
+  ok: '#5fd3a0',
+  warn: '#f2b84b',
+  crit: '#f26b6b',
+  nodata: '#66758c',
 };
 
 // ============================================================
@@ -87,7 +87,8 @@ function AnatomyModel({
   selectedStatus,
   onSelect,
   controlsRef,
-}) {
+}) 
+{
   const { camera } = useThree();
   const rootRef = useRef();
 
@@ -95,6 +96,17 @@ function AnatomyModel({
 
   // Cargamos el modelo GLB y habilitamos Meshopt.
   const { scene } = useGLTF(url, false, true);
+  useEffect(() => {
+  scene.traverse((object) => {
+    if (object.name) {
+      console.log(
+        'ANATOMÍA:',
+        object.name,
+        object.type
+      );
+    }
+  });
+}, [scene]);
 
   // Clonamos el modelo y sus materiales.
   const model = useMemo(() => {
@@ -162,15 +174,33 @@ function AnatomyModel({
   // VISIBILIDAD DE LA PIEL
   // ==========================================================
 
-  useEffect(() => {
-    const skinSet = new Set(SKIN_KEYS);
+ useEffect(() => {
+  const skinSet = new Set(SKIN_KEYS);
 
-    model.traverse((object) => {
-      if (skinSet.has(object.name)) {
-        object.visible = showSkin;
+  model.traverse((object) => {
+    if (!skinSet.has(object.name)) return;
+
+    object.visible = true;
+    object.traverse((child) => {
+      if (!child.isMesh) return;
+
+      // Material holográfico plano: sin relieve ni sombreado
+      if (!child.userData.ghostMaterial) {
+        child.userData.ghostMaterial = new THREE.MeshBasicMaterial({
+          color: '#5aa9ff',
+          transparent: true,
+          depthWrite: false,
+        });
       }
+      const ghost = child.userData.ghostMaterial;
+      ghost.opacity = showSkin ? 0.3 : 0.1;
+      child.material = ghost;
+
+      // Los clics atraviesan la piel y llegan a los órganos
+      child.raycast = () => {};
     });
-  }, [model, showSkin]);
+  });
+}, [model, showSkin]);
 
   // ==========================================================
   // RESALTADO DE ÓRGANOS
@@ -478,11 +508,9 @@ export default function BodyViewer3D({
                 );
               }}
             >
-              <color
-                attach="background"
-                args={['#0b130e']}
-              />
-
+              <color attach="background" 
+              args={['#08111f']} />
+              
               <ambientLight intensity={1.1} />
 
               <directionalLight
